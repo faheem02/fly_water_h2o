@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
         $w_mobile = mysqli_real_escape_string($conn, $_POST['walkin_mobile']);
         $w_address = mysqli_real_escape_string($conn, $_POST['walkin_address']);
         $w_salesman = is_salesman() ? $salesman_name : mysqli_real_escape_string($conn, $_POST['walkin_salesman']);
-        mysqli_query($conn, "INSERT INTO customers (customer_name, mobile, address, outstanding_balance, salesman, status, created_datetime) VALUES ('$w_name', '$w_mobile', '$w_address', 0, '$w_salesman', 'Active', '$datetime')");
+        $w_code = generate_5digit_code($conn, 'customers', 'customer_code');
+        mysqli_query($conn, "INSERT INTO customers (customer_code, customer_name, mobile, address, outstanding_balance, salesman, status, created_datetime) VALUES ('$w_code', '$w_name', '$w_mobile', '$w_address', 0, '$w_salesman', 'Active', '$datetime')");
         $customer_id = mysqli_insert_id($conn);
         $cust = ['customer_name' => $w_name, 'outstanding_balance' => 0, 'empty_bottles_balance' => 0, 'salesman' => $w_salesman];
     } else {
@@ -70,8 +71,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
         } else {
             // Insert delivery record with product_id
             $entry_salesman = isset($_SESSION['admin_name']) ? mysqli_real_escape_string($conn, $_SESSION['admin_name']) : '';
-            mysqli_query($conn, "INSERT INTO water_deliveries (customer_id, product_id, bottles_delivered, empty_bottles_returned, bottle_rate, total_amount, salesman, notes, delivery_datetime) 
-                                 VALUES ($customer_id, $product_id, $bottles, $empties_returned, $rate, $total, '$entry_salesman', '$notes', '$datetime')");
+            $voucher_no = generate_voucher_no($conn, 'water_deliveries', 'voucher_no', 'SLS-');
+            mysqli_query($conn, "INSERT INTO water_deliveries (voucher_no, customer_id, product_id, bottles_delivered, empty_bottles_returned, bottle_rate, total_amount, salesman, notes, delivery_datetime) 
+                                 VALUES ('$voucher_no', $customer_id, $product_id, $bottles, $empties_returned, $rate, $total, '$entry_salesman', '$notes', '$datetime')");
             
             $delivery_id = mysqli_insert_id($conn);
             
@@ -119,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
             }
             // ========== END STOCK MANAGEMENT ==========
             
-            $msg = "Delivery recorded successfully for " . htmlspecialchars($cust['customer_name']) . "! Total: Rs " . number_format($total, 2);
+            $msg = "Delivery recorded successfully for " . htmlspecialchars($cust['customer_name']) . "! Voucher: <strong>$voucher_no</strong> | Total: Rs " . number_format($total, 2);
             if($cash_received > 0) {
                 $msg .= " | Cash Received: Rs " . number_format($cash_received, 2);
                 $msg .= " | Outstanding: Rs " . number_format($new_outstanding, 2);
@@ -134,10 +136,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
 }
 
 // Get customer list for dropdown
-$customers_list = mysqli_query($conn, "SELECT c.id, c.customer_name, c.mobile, c.salesman, c.outstanding_balance, c.empty_bottles_balance FROM customers c WHERE c.status='Active' $salesman_only ORDER BY c.customer_name");
+$customers_list = mysqli_query($conn, "SELECT c.id, c.customer_code, c.customer_name, c.mobile, c.salesman, c.outstanding_balance, c.empty_bottles_balance FROM customers c WHERE c.status='Active' $salesman_only ORDER BY c.customer_name");
 
 // Get active products with stock
-$products_list = mysqli_query($conn, "SELECT id, product_name, sale_price, current_stock, track_empty_bottles FROM products WHERE status='Active' AND current_stock > 0 ORDER BY product_name");
+$products_list = mysqli_query($conn, "SELECT id, product_name, purchase_price, sale_price, current_stock, track_empty_bottles FROM products WHERE status='Active' AND current_stock > 0 ORDER BY product_name");
 
 // Get today's sales summary
 $today_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(total_amount),0) as total, COALESCE(SUM(bottles_delivered),0) as bottles FROM water_deliveries WHERE DATE(delivery_datetime)=CURDATE()"));
@@ -338,7 +340,7 @@ body {
                             <label class="form-label fw-semibold">Search Customer <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name or mobile..." autocomplete="off">
+                                <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name, mobile or ID..." autocomplete="off">
                                 <button type="button" class="btn btn-outline-secondary" onclick="clearCustomer()" title="Clear">
                                     <i class="fas fa-times"></i>
                                 </button>
@@ -414,7 +416,7 @@ body {
                                                 data-stock="<?php echo $p['current_stock']; ?>"
                                                 data-track-empty="<?php echo !empty($p['track_empty_bottles']) ? 1 : 0; ?>"
                                                 data-name="<?php echo htmlspecialchars($p['product_name']); ?>">
-                                            <?php echo htmlspecialchars($p['product_name']); ?> — Rs <?php echo number_format($p['sale_price'], 2); ?>
+                                            <?php echo htmlspecialchars($p['product_name']); ?> — Cost: Rs <?php echo number_format($p['purchase_price'], 2); ?>
                                         </option>
                                     <?php endwhile; ?>
                                 </select>
@@ -562,6 +564,7 @@ mysqli_data_seek($customers_list, 0);
 while($c = mysqli_fetch_assoc($customers_list)){
     $cust_js[] = [
         'id' => $c['id'],
+        'code' => $c['customer_code'],
         'name' => htmlspecialchars($c['customer_name'], ENT_QUOTES),
         'mobile' => htmlspecialchars($c['mobile'] ?? '', ENT_QUOTES),
         'salesman' => htmlspecialchars($c['salesman'] ?? '', ENT_QUOTES),
@@ -607,7 +610,7 @@ $(function() {
         source: function(request, response) {
             var term = request.term.toLowerCase();
             var results = $.grep(customers, function(c) {
-                return c.name.toLowerCase().indexOf(term) !== -1 || (c.mobile && c.mobile.indexOf(term) !== -1);
+                return c.name.toLowerCase().indexOf(term) !== -1 || (c.mobile && c.mobile.indexOf(term) !== -1) || (c.code && c.code.indexOf(term) !== -1);
             });
             response(results.slice(0, 20));
         },
@@ -626,7 +629,7 @@ $(function() {
         }
     }).data("ui-autocomplete")._renderItem = function(ul, item) {
         return $("<li>")
-            .append("<div><strong>" + item.name + "</strong><br><small style='color:#666;'>" + item.mobile + "</small></div>")
+            .append("<div><strong>" + item.name + "</strong> <span style='color:#A04657;font-weight:600;'>[" + item.code + "]</span><br><small style='color:#666;'>" + item.mobile + "</small></div>")
             .appendTo(ul);
     };
 });
@@ -649,7 +652,7 @@ function toggleWalkin() {
 // Update customer info when customer is selected
 function updateCustomerInfo() {
     if(selectedCustomer) {
-        displayCustomerName.innerText = selectedCustomer.name;
+        displayCustomerName.innerText = selectedCustomer.name + ' [' + (selectedCustomer.code || '') + ']';
         displayCustomerMobile.innerText = 'Mobile: ' + selectedCustomer.mobile;
         document.getElementById('displaySalesman').innerText = selectedCustomer.salesman || '-';
         currentCustomerOutstanding = selectedCustomer.outstanding || 0;

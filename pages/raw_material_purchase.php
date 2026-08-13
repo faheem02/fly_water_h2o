@@ -7,7 +7,7 @@ $error = '';
 $success = '';
 
 // Get suppliers for dropdown
-$suppliers_query = "SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name";
+$suppliers_query = "SELECT id, supplier_code, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name";
 $suppliers_result = mysqli_query($conn, $suppliers_query);
 
 // Get materials with purchase prices
@@ -40,11 +40,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
         mysqli_begin_transaction($conn);
         
         try {
+            // Generate system voucher numbers
+            $purchase_voucher = generate_voucher_no($conn, 'raw_material_purchases', 'voucher_no', 'PUR-');
+            $pay_voucher = ($paid_amount > 0) ? generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-') : '';
+
             // Insert into purchases table
             $insert_query = "INSERT INTO raw_material_purchases 
-                            (purchase_date, invoice_no, supplier_id, subtotal, discount_percent, discount_amount, total_amount, payment_status, paid_amount, credit_amount, notes, created_datetime) 
+                            (voucher_no, purchase_date, invoice_no, supplier_id, subtotal, discount_percent, discount_amount, total_amount, payment_status, paid_amount, credit_amount, notes, created_datetime) 
                             VALUES 
-                            ('$purchase_date', '$invoice_no', $supplier_id, $subtotal, $discount_percent, $discount_amount, $total_amount, '$payment_status', $paid_amount, $credit_amount, '$notes', NOW())";
+                            ('$purchase_voucher', '$purchase_date', '$invoice_no', $supplier_id, $subtotal, $discount_percent, $discount_amount, $total_amount, '$payment_status', $paid_amount, $credit_amount, '$notes', NOW())";
             
             if(!mysqli_query($conn, $insert_query)){
                 throw new Exception("Error saving purchase: " . mysqli_error($conn));
@@ -91,7 +95,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                     $stock_ledger = "INSERT INTO raw_material_stock_ledger 
                                     (material_id, transaction_date, transaction_type, reference_type, reference_id, quantity_in, running_stock, description, created_datetime) 
                                     VALUES 
-                                    ($material_id, NOW(), 'PURCHASE', 'purchase', $purchase_id, $quantity, $running_stock, 'Purchase from supplier - Invoice: " . ($invoice_no ? $invoice_no : $purchase_id) . "', NOW())";
+                                    ($material_id, NOW(), 'PURCHASE', 'purchase', $purchase_id, $quantity, $running_stock, 'Purchase from supplier - Invoice: " . ($invoice_no ? $invoice_no : $purchase_voucher) . "', NOW())";
                     
                     if(!mysqli_query($conn, $stock_ledger)){
                         throw new Exception("Error updating stock ledger: " . mysqli_error($conn));
@@ -112,7 +116,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
             }
             
             // Add to supplier ledger (Credit for purchase)
-            $ledger_desc = "Purchase - Invoice: " . ($invoice_no ? $invoice_no : "PUR-$purchase_id");
+            $ledger_desc = "Purchase - Invoice: " . ($invoice_no ? $invoice_no : $purchase_voucher);
             $ledger_query = "INSERT INTO supplier_ledger 
                             (supplier_id, transaction_date, description, credit_amount, running_balance, reference_id, reference_type) 
                             VALUES 
@@ -125,9 +129,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
             // If payment made, add to payments table and ledger
             if($paid_amount > 0){
                 $payment_query = "INSERT INTO supplier_payments 
-                                 (supplier_id, purchase_id, payment_amount, payment_type, notes, payment_datetime, created_datetime) 
+                                 (voucher_no, supplier_id, purchase_id, payment_amount, payment_type, notes, payment_datetime, created_datetime) 
                                  VALUES 
-                                 ($supplier_id, $purchase_id, $paid_amount, 'Cash', 'Payment against purchase', NOW(), NOW())";
+                                 ('$pay_voucher', $supplier_id, $purchase_id, $paid_amount, 'Cash', 'Payment against purchase', NOW(), NOW())";
                 
                 if(!mysqli_query($conn, $payment_query)){
                     throw new Exception("Error recording payment: " . mysqli_error($conn));
@@ -142,7 +146,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                 $payment_ledger = "INSERT INTO supplier_ledger 
                                   (supplier_id, transaction_date, description, debit_amount, running_balance, reference_id, reference_type) 
                                   VALUES 
-                                  ($supplier_id, NOW(), 'Payment against purchase - Invoice: " . ($invoice_no ? $invoice_no : "PUR-$purchase_id") . "', $paid_amount, $new_balance_after_payment, $purchase_id, 'payment')";
+                                  ($supplier_id, NOW(), 'Payment against purchase - Invoice: " . ($invoice_no ? $invoice_no : $purchase_voucher) . "', $paid_amount, $new_balance_after_payment, $purchase_id, 'payment')";
                 mysqli_query($conn, $payment_ledger);
             }
             
@@ -262,7 +266,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                             <option value="">Select Supplier</option>
                             <?php while($supplier = mysqli_fetch_assoc($suppliers_result)): ?>
                                 <option value="<?php echo $supplier['id']; ?>">
-                                    <?php echo htmlspecialchars($supplier['supplier_name']); ?>
+                                    <?php echo htmlspecialchars($supplier['supplier_name']); ?> [<?php echo htmlspecialchars($supplier['supplier_code']); ?>]
                                 </option>
                             <?php endwhile; ?>
                         </select>

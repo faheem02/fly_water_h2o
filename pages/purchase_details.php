@@ -120,7 +120,10 @@ $payments_result = mysqli_query($conn, $payments_query);
                 <i class="fas fa-file-invoice me-2" style="color: #A04657;"></i> Purchase Details
             </h2>
             <p class="text-muted mb-0">
-                Invoice #<?php echo htmlspecialchars($purchase['invoice_no'] ?? 'N/A'); ?>
+                Voucher: <strong><?php echo htmlspecialchars($purchase['voucher_no'] ?? 'N/A'); ?></strong>
+                <?php if($purchase['invoice_no']): ?>
+                    | Invoice #<?php echo htmlspecialchars($purchase['invoice_no']); ?>
+                <?php endif; ?>
             </p>
         </div>
          <div class="d-flex gap-2">
@@ -155,7 +158,7 @@ $payments_result = mysqli_query($conn, $payments_query);
                         </p>
                     </div>
                     <div class="col-md-6 text-md-end">
-                        <h4 class="text-primary">Purchase #<?php echo $purchase_id; ?></h4>
+                        <h4 class="text-primary"><?php echo htmlspecialchars($purchase['voucher_no'] ?? ('Purchase #' . $purchase_id)); ?></h4>
                         <p class="mb-1"><strong>Date:</strong> <?php echo date('d-m-Y h:i A', strtotime($purchase['purchase_date'])); ?></p>
                         <p><strong>Invoice No:</strong> <?php echo htmlspecialchars($purchase['invoice_no'] ?? 'N/A'); ?></p>
                     </div>
@@ -277,6 +280,7 @@ $payments_result = mysqli_query($conn, $payments_query);
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Voucher No</th>
                                 <th>Amount</th>
                                 <th>Payment Type</th>
                                 <th>Reference</th>
@@ -287,6 +291,7 @@ $payments_result = mysqli_query($conn, $payments_query);
                             <?php while($payment = mysqli_fetch_assoc($payments_result)): ?>
                             <tr>
                                 <td><?php echo date('d-m-Y h:i A', strtotime($payment['payment_datetime'])); ?></td>
+                                <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($payment['voucher_no'] ?? '—'); ?></span></td>
                                 <td class="text-success fw-bold">Rs <?php echo number_format($payment['payment_amount'], 2); ?></td>
                                 <td>
                                     <?php 

@@ -37,8 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $status = $_POST['status'];
         $datetime = date('Y-m-d H:i:s');
 
-        $query = "INSERT INTO customers (customer_name, mobile, address, security_deposit, opening_balance, empty_bottles_balance, outstanding_balance, salesman, status, created_datetime) 
-                  VALUES ('$name', '$mobile', '$address', $deposit, $opening, $empties, $opening, '$salesman', '$status', '$datetime')";
+        $customer_code = generate_5digit_code($conn, 'customers', 'customer_code');
+        $query = "INSERT INTO customers (customer_code, customer_name, mobile, address, security_deposit, opening_balance, empty_bottles_balance, outstanding_balance, salesman, status, created_datetime) 
+                  VALUES ('$customer_code', '$name', '$mobile', '$address', $deposit, $opening, $empties, $opening, '$salesman', '$status', '$datetime')";
         if (mysqli_query($conn, $query)) {
             $cid = mysqli_insert_id($conn);
             if ($opening != 0) {
@@ -88,7 +89,7 @@ $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : '';
 $to_date = isset($_GET['to_date']) ? $_GET['to_date'] : '';
 
 $where = " WHERE 1=1";
-if ($search) $where .= " AND (c.customer_name LIKE '%$search%' OR c.mobile LIKE '%$search%' OR c.id LIKE '%$search%' OR c.salesman LIKE '%$search%')";
+if ($search) $where .= " AND (c.customer_name LIKE '%$search%' OR c.mobile LIKE '%$search%' OR c.id LIKE '%$search%' OR c.customer_code LIKE '%$search%' OR c.salesman LIKE '%$search%')";
 if ($from_date) $where .= " AND DATE(c.created_datetime) >= '$from_date'";
 if ($to_date) $where .= " AND DATE(c.created_datetime) <= '$to_date'";
 $where .= $salesman_only;
@@ -127,6 +128,7 @@ $stats = mysqli_fetch_assoc($stats_query);
 .customers-table td:first-child,
 .customers-table th:first-child {
     text-align: center;
+    white-space: nowrap;
 }
 .address-cell {
     max-width: 200px;
@@ -259,7 +261,7 @@ $stats = mysqli_fetch_assoc($stats_query);
                 <table class="table table-hover customers-table mb-0" id="customersTable">
                     <thead>
                         <tr>
-                            <th style="width:50px">ID</th>
+                            <th style="width:80px">ID</th>
                             <th style="min-width:140px">Name</th>
                             <th style="min-width:110px">Mobile</th>
                             <th style="min-width:160px">Address</th>
@@ -277,7 +279,7 @@ $stats = mysqli_fetch_assoc($stats_query);
                         <?php if ($customers && mysqli_num_rows($customers) > 0): ?>
                             <?php while($row = mysqli_fetch_assoc($customers)): ?>
                                 <tr>
-                                    <td class="text-center fw-semibold"><?php echo $row['id']; ?></td>
+                                    <td class="text-center fw-semibold"><?php echo $row['customer_code']; ?></td>
                                     <td><?php echo htmlspecialchars($row['customer_name']); ?></td>
                                     <td><?php echo htmlspecialchars($row['mobile']); ?></td>
                                     <td class="address-cell"><?php echo nl2br(htmlspecialchars($row['address'] ?? '-')); ?></td>
@@ -297,6 +299,7 @@ $stats = mysqli_fetch_assoc($stats_query);
                                     <td class="action-buttons text-center">
                                         <button type="button" class="btn btn-sm btn-outline-primary viewCustomerBtn"
                                             data-id="<?php echo $row['id']; ?>"
+                                            data-code="<?php echo $row['customer_code']; ?>"
                                             data-name="<?php echo htmlspecialchars($row['customer_name']); ?>"
                                             data-mobile="<?php echo $row['mobile']; ?>"
                                             data-address="<?php echo htmlspecialchars($row['address']); ?>"
@@ -472,6 +475,7 @@ $stats = mysqli_fetch_assoc($stats_query);
                     <div>
                         <h4 class="mb-0" id="view_name"></h4>
                         <small class="text-muted" id="view_mobile"></small>
+                        <div><span class="badge bg-success rounded-pill mt-1" id="view_code">-</span></div>
                     </div>
                 </div>
 
@@ -593,6 +597,7 @@ document.addEventListener('DOMContentLoaded', function() {
     viewButtons.forEach(function(btn) {
         btn.addEventListener('click', function() {
             document.getElementById('view_name').textContent = btn.getAttribute('data-name');
+            document.getElementById('view_code').textContent = 'Customer ID: ' + (btn.getAttribute('data-code') || '-');
             var mobile = btn.getAttribute('data-mobile') || '';
             document.getElementById('view_mobile').textContent = mobile ? 'Mobile: ' + mobile : 'No mobile';
             document.getElementById('view_address').textContent = btn.getAttribute('data-address') || '-';
@@ -630,6 +635,7 @@ if (typeof jQuery !== 'undefined') {
         $('.viewCustomerBtn').off('click').on('click', function() {
             var d = $(this).data();
             $('#view_name').text(d.name);
+            $('#view_code').text('Customer ID: ' + (d.code || '-'));
             $('#view_mobile').text(d.mobile ? 'Mobile: ' + d.mobile : 'No mobile');
             $('#view_address').text(d.address || '-');
             $('#view_salesman').text(d.salesman || '-');
@@ -676,6 +682,7 @@ if (typeof jQuery !== 'undefined') {
             <thead>
                 <tr>
                     <th style="width:40px;">#</th>
+                    <th style="width:60px;">ID</th>
                     <th>Name</th>
                     <th>Mobile</th>
                     <th>Salesman</th>
@@ -693,6 +700,7 @@ if (typeof jQuery !== 'undefined') {
                 ?>
                     <tr>
                         <td><?php echo $sno++; ?></td>
+                        <td><?php echo $row['customer_code']; ?></td>
                         <td><strong><?php echo htmlspecialchars($row['customer_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($row['mobile']); ?></td>
                         <td><?php echo htmlspecialchars($row['salesman'] ?? '-'); ?></td>

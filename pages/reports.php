@@ -375,6 +375,7 @@ if($report_type == 'monthly') {
         </a>
     </div>
 
+    
     <!-- Filter Card -->
     <div class="filter-card">
         <form method="GET" class="row g-3 align-items-end">
@@ -404,6 +405,15 @@ if($report_type == 'monthly') {
         </form>
     </div>
 
+  <!-- Print Button -->
+    <div class="row mt-4">
+        <div class="col-12 text-end">
+            <button onclick="window.print()" class="btn btn-outline-dark rounded-pill px-4 print-hide">
+                <i class="fas fa-print me-2"></i> Print
+            </button>
+        </div>
+    </div>
+
     <!-- Report Result -->
     <div class="result-card">
         <div class="result-title">
@@ -414,22 +424,19 @@ if($report_type == 'monthly') {
         </div>
     </div>
 
-  <!-- Print Button -->
-    <div class="row mt-4">
-        <div class="col-12 text-end">
-            <button onclick="window.print()" class="btn btn-outline-dark rounded-pill px-4">
-                <i class="fas fa-print me-2"></i> Print
-            </button>
-        </div>
-    </div>
+
 
 </div>
 </div>
 
 <!-- Print Styles -->
 <style media="print">
-    .fixed-header, .fixed-sidebar, .fixed-footer, .filter-card, .quick-buttons, .btn-outline-secondary, .report-header .text-end, .print-hide {
+    .fixed-header, .fixed-sidebar, .app-footer, .filter-card, .quick-buttons, .btn-outline-secondary, .report-header .text-end, .print-hide {
         display: none !important;
+    }
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
     }
     .reports-wrapper {
         padding: 0 !important;
@@ -438,6 +445,7 @@ if($report_type == 'monthly') {
     .result-card {
         box-shadow: none !important;
         padding: 0 !important;
+        border: none !important;
     }
     .report-table th {
         background: #f0f0f0 !important;

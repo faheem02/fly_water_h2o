@@ -2,32 +2,21 @@
 require_once '../includes/db.php';
 if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
-$salesman_where = is_salesman() ? ' AND ' . salesman_match_condition($conn) : '';
-
-$customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
+$supplier_id = isset($_GET['supplier_id']) ? intval($_GET['supplier_id']) : 0;
 $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : '';
 $to_date = isset($_GET['to_date']) ? $_GET['to_date'] : '';
 $ledger = [];
-$customer_name = '';
-$customer_code = '';
-$customer_mobile = '';
-$customer_address = '';
+$supplier = null;
 $current_balance = 0;
-$customer_empties = 0;
-$customer_deposit = 0;
+$total_debit = 0;
+$total_credit = 0;
 
-if ($customer_id) {
-    $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_name, customer_code, mobile, address, outstanding_balance, empty_bottles_balance, security_deposit FROM customers c WHERE id=$customer_id $salesman_where"));
-    if($cust) {
-        $customer_name = $cust['customer_name'];
-        $customer_code = $cust['customer_code'];
-        $customer_mobile = $cust['mobile'];
-        $customer_address = $cust['address'];
-        $current_balance = $cust['outstanding_balance'];
-        $customer_empties = $cust['empty_bottles_balance'];
-        $customer_deposit = $cust['security_deposit'];
-        
-        // Apply date filters
+if ($supplier_id) {
+    $sres = mysqli_query($conn, "SELECT * FROM suppliers WHERE id=$supplier_id");
+    $supplier = mysqli_fetch_assoc($sres);
+    if($supplier) {
+        $current_balance = $supplier['current_balance'];
+
         $date_condition = "";
         if($from_date && $to_date) {
             $date_condition = "AND DATE(wl.transaction_date) BETWEEN '$from_date' AND '$to_date'";
@@ -36,19 +25,17 @@ if ($customer_id) {
         } elseif($to_date) {
             $date_condition = "AND DATE(wl.transaction_date) <= '$to_date'";
         }
-        
-        $ledger_query = "SELECT wl.*, wd.bottles_delivered, wd.empty_bottles_returned, wd.product_id, wd.bottle_rate, p.product_name, p.track_empty_bottles FROM customer_ledger wl LEFT JOIN water_deliveries wd ON wl.reference_type='delivery' AND wl.reference_id = wd.id LEFT JOIN products p ON wd.product_id = p.id WHERE wl.customer_id=$customer_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
+
+        $ledger_query = "SELECT wl.* FROM supplier_ledger wl WHERE wl.supplier_id=$supplier_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
         $ledger = mysqli_query($conn, $ledger_query);
     }
 }
 
-$customers = mysqli_query($conn, "SELECT c.id, c.customer_name, c.mobile, c.outstanding_balance FROM customers c WHERE c.status='Active' $salesman_where ORDER BY c.customer_name");
+$suppliers = mysqli_query($conn, "SELECT id, supplier_code, supplier_name, current_balance FROM suppliers WHERE status='Active' ORDER BY supplier_name");
 
-// Calculate summary stats for selected customer
-$total_debit = 0;
-$total_credit = 0;
-if($customer_id && $ledger) {
-    $summary_query = mysqli_query($conn, "SELECT COALESCE(SUM(debit_amount),0) as total_debit, COALESCE(SUM(credit_amount),0) as total_credit FROM customer_ledger WHERE customer_id=$customer_id");
+// Calculate summary stats for selected supplier
+if($supplier_id && $ledger) {
+    $summary_query = mysqli_query($conn, "SELECT COALESCE(SUM(debit_amount),0) as total_debit, COALESCE(SUM(credit_amount),0) as total_credit FROM supplier_ledger WHERE supplier_id=$supplier_id");
     $summary = mysqli_fetch_assoc($summary_query);
     $total_debit = $summary['total_debit'];
     $total_credit = $summary['total_credit'];
@@ -107,12 +94,12 @@ if($customer_id && $ledger) {
     color: #28a745;
     font-weight: 600;
 }
-.balance-positive {
-    color: #28a745;
+.balance-credit {
+    color: #b45309;
     font-weight: 700;
 }
-.balance-negative {
-    color: #dc3545;
+.balance-advance {
+    color: #16a34a;
     font-weight: 700;
 }
 .summary-box {
@@ -184,29 +171,34 @@ if($customer_id && $ledger) {
     <!-- Page Header -->
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
         <h2 class="page-heading mb-2 mb-sm-0">
-            <i class="fas fa-book me-2" style="color: #A04657;"></i> Customer Ledger
+            <i class="fas fa-book me-2" style="color: #A04657;"></i> Supplier Ledger
         </h2>
-        <?php if($customer_id && $customer_name): ?>
-            <button onclick="printLedger()" class="btn btn-outline-secondary rounded-pill px-4 py-2">
-                <i class="fas fa-print me-2"></i> Print
-            </button>
-        <?php endif; ?>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="suppliers.php" class="btn btn-outline-secondary rounded-pill px-4 py-2">
+                <i class="fas fa-arrow-left me-2"></i> Back to Suppliers
+            </a>
+            <?php if($supplier): ?>
+                <button onclick="printLedger()" class="btn btn-outline-secondary rounded-pill px-4 py-2">
+                    <i class="fas fa-print me-2"></i> Print
+                </button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <!-- Customer Selection Card -->
+    <!-- Supplier Selection Card -->
     <div class="customer-select-card">
         <div class="row align-items-center">
             <div class="col-md-8">
                 <form method="GET" class="row g-3 align-items-end">
                     <div class="col-md-8">
                         <label class="form-label text-white mb-1">
-                            <i class="fas fa-user me-1"></i> Select Customer
+                            <i class="fas fa-user me-1"></i> Select Supplier
                         </label>
-                        <select name="customer_id" class="form-select rounded-pill" style="border-radius: 30px;" required>
-                            <option value="">-- Choose Customer --</option>
-                            <?php while($c = mysqli_fetch_assoc($customers)): ?>
-                                <option value="<?php echo $c['id']; ?>" <?php echo ($customer_id == $c['id']) ? 'selected' : ''; ?> data-outstanding="<?php echo $c['outstanding_balance']; ?>">
-                                    <?php echo htmlspecialchars($c['customer_name']); ?> - <?php echo $c['mobile']; ?> (Outstanding: Rs <?php echo number_format($c['outstanding_balance'], 2); ?>)
+                        <select name="supplier_id" class="form-select rounded-pill" style="border-radius: 30px;" required>
+                            <option value="">-- Choose Supplier --</option>
+                            <?php while($s = mysqli_fetch_assoc($suppliers)): ?>
+                                <option value="<?php echo $s['id']; ?>" <?php echo ($supplier_id == $s['id']) ? 'selected' : ''; ?> data-balance="<?php echo $s['current_balance']; ?>">
+                                    <?php echo htmlspecialchars($s['supplier_name']); ?> - <?php echo htmlspecialchars($s['supplier_code']); ?>
                                 </option>
                             <?php endwhile; ?>
                         </select>
@@ -224,8 +216,8 @@ if($customer_id && $ledger) {
         </div>
     </div>
 
-    <?php if($customer_id && $customer_name): ?>
-        <!-- Customer Info & Summary -->
+    <?php if($supplier): ?>
+        <!-- Supplier Info & Summary -->
         <div class="customer-info-card">
             <div class="row align-items-center">
                 <div class="col-md-6">
@@ -234,9 +226,12 @@ if($customer_id && $ledger) {
                             <i class="fas fa-user-circle fa-3x" style="color: #A04657;"></i>
                         </div>
                         <div>
-                            <h3 class="mb-1"><?php echo htmlspecialchars($customer_name); ?> <small class="text-muted fs-6">(ID: <?php echo htmlspecialchars($customer_code); ?>)</small></h3>
+                            <h3 class="mb-1"><?php echo htmlspecialchars($supplier['supplier_name']); ?> <small class="text-muted fs-6">(ID: <?php echo htmlspecialchars($supplier['supplier_code']); ?>)</small></h3>
                             <p class="text-muted mb-0">
-                                <i class="fas fa-phone me-1"></i> <?php echo $customer_mobile ?: 'No mobile'; ?>
+                                <i class="fas fa-phone me-1"></i> <?php echo $supplier['mobile'] ?: 'No phone'; ?>
+                                <?php if($supplier['contact_person']): ?>
+                                    <span class="mx-2">|</span> <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($supplier['contact_person']); ?>
+                                <?php endif; ?>
                             </p>
                         </div>
                     </div>
@@ -245,26 +240,23 @@ if($customer_id && $ledger) {
                     <div class="row g-3">
                         <div class="col-6">
                             <div class="summary-box">
-                                <h6>Total Debit (Sales)</h6>
+                                <h6>Total Debit (Payments)</h6>
                                 <h4 class="debit-amount">Rs <?php echo number_format($total_debit, 2); ?></h4>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="summary-box">
-                                <h6>Total Credit (Payments)</h6>
+                                <h6>Total Credit (Purchases)</h6>
                                 <h4 class="credit-amount">Rs <?php echo number_format($total_credit, 2); ?></h4>
                             </div>
                         </div>
                         <div class="col-6">
                             <div class="summary-box">
-                                <h6>Empty Bottles Balance</h6>
-                                <h4 style="color: #17a2b8;"><?php echo number_format($customer_empties); ?> bottles</h4>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="summary-box">
-                                <h6>Security Deposit</h6>
-                                <h4 style="color: #6f42c1;">Rs <?php echo number_format($customer_deposit, 2); ?></h4>
+                                <h6>Current Balance</h6>
+                                <h4 class="<?php echo $current_balance >= 0 ? 'balance-credit' : 'balance-advance'; ?>">
+                                    Rs <?php echo number_format(abs($current_balance), 2); ?>
+                                    <small>(<?php echo $current_balance >= 0 ? 'Credit' : 'Advance'; ?>)</small>
+                                </h4>
                             </div>
                         </div>
                     </div>
@@ -275,7 +267,7 @@ if($customer_id && $ledger) {
         <!-- Date Filter -->
         <div class="filter-box">
             <form method="GET" class="row g-3 align-items-end">
-                <input type="hidden" name="customer_id" value="<?php echo $customer_id; ?>">
+                <input type="hidden" name="supplier_id" value="<?php echo $supplier_id; ?>">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i> From Date</label>
                     <input type="date" name="from_date" class="form-control date-input" value="<?php echo $from_date; ?>">
@@ -292,7 +284,7 @@ if($customer_id && $ledger) {
             </form>
             <?php if($from_date || $to_date): ?>
                 <div class="mt-3 text-end">
-                    <a href="?customer_id=<?php echo $customer_id; ?>" class="btn btn-sm btn-outline-secondary rounded-pill">
+                    <a href="?supplier_id=<?php echo $supplier_id; ?>" class="btn btn-sm btn-outline-secondary rounded-pill">
                         <i class="fas fa-times me-1"></i> Clear Filters
                     </a>
                 </div>
@@ -311,12 +303,9 @@ if($customer_id && $ledger) {
                             <tr>
                                 <th style="width: 140px">Date</th>
                                 <th>Description</th>
-                                <th style="width: 80px" class="text-center">Delivered</th>
-                                <th style="width: 80px" class="text-center">Empty Returned</th>
-                                <th style="width: 80px" class="text-end">Rate (Rs)</th>
-                                <th style="width: 120px" class="text-end">Debit (Rs)</th>
-                                <th style="width: 120px" class="text-end">Credit (Rs)</th>
-                                <th style="width: 120px" class="text-end">Balance (Rs)</th>
+                                <th style="width: 150px" class="text-end">Debit (Payment)</th>
+                                <th style="width: 150px" class="text-end">Credit (Purchase)</th>
+                                <th style="width: 180px" class="text-end">Balance</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -333,41 +322,18 @@ if($customer_id && $ledger) {
                                         </td>
                                         <td>
                                             <?php 
-                                            $is_delivery = ($row['reference_type'] == 'delivery' && !empty($row['product_name']));
                                             $icon = '';
-                                            if($is_delivery) {
-                                                $icon = '<i class="fas fa-truck text-primary me-1"></i>';
-                                            } elseif(strpos($row['description'], 'Payment') !== false) {
+                                            if(strpos($row['description'], 'Payment') !== false) {
                                                 $icon = '<i class="fas fa-money-bill-wave text-success me-1"></i>';
+                                            } elseif(strpos($row['description'], 'Purchase') !== false) {
+                                                $icon = '<i class="fas fa-shopping-cart text-primary me-1"></i>';
                                             } elseif(strpos($row['description'], 'Opening') !== false) {
                                                 $icon = '<i class="fas fa-chart-line text-info me-1"></i>';
                                             } else {
                                                 $icon = '<i class="fas fa-exchange-alt text-secondary me-1"></i>';
                                             }
-                                            $display_desc = $is_delivery ? $row['product_name'] : $row['description'];
-                                            echo $icon . ' ' . htmlspecialchars($display_desc); 
+                                            echo $icon . ' ' . htmlspecialchars($row['description']); 
                                             ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if($row['reference_type'] == 'delivery' && $row['bottles_delivered'] !== null): ?>
-                                                <span class="fw-semibold" style="color: #1565c0;"><?php echo number_format($row['bottles_delivered']); ?></span>
-                                            <?php else: ?>
-                                                <span class="text-muted">—</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-center">
-                                            <?php if($row['reference_type'] == 'delivery' && !empty($row['track_empty_bottles']) && $row['empty_bottles_returned'] !== null): ?>
-                                                <span class="fw-semibold" style="color: #2e7d32;"><?php echo number_format($row['empty_bottles_returned']); ?></span>
-                                            <?php else: ?>
-                                                <span class="text-muted">—</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="text-end">
-                                            <?php if($row['reference_type'] == 'delivery' && $row['bottle_rate'] !== null): ?>
-                                                <span class="fw-semibold" style="color: #6f42c1;"><?php echo number_format($row['bottle_rate'], 2); ?></span>
-                                            <?php else: ?>
-                                                <span class="text-muted">—</span>
-                                            <?php endif; ?>
                                         </td>
                                         <td class="text-end">
                                             <?php if($row['debit_amount'] > 0): ?>
@@ -384,35 +350,31 @@ if($customer_id && $ledger) {
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-end">
-                                            <?php if($balance > 0): ?>
-                                                <span class="balance-positive">Rs <?php echo number_format($balance, 2); ?></span>
-                                            <?php elseif($balance < 0): ?>
-                                                <span class="balance-negative">-Rs <?php echo number_format(abs($balance), 2); ?></span>
+                                            <?php if($balance >= 0): ?>
+                                                <span class="balance-credit">Rs <?php echo number_format($balance, 2); ?> <small>(Credit)</small></span>
                                             <?php else: ?>
-                                                <span class="text-muted">Rs 0.00</span>
+                                                <span class="balance-advance">Rs <?php echo number_format(abs($balance), 2); ?> <small>(Advance)</small></span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
                                 <?php endwhile; ?>
                                 <!-- Closing Balance Row -->
                                 <tr style="background: #f8f9fa; font-weight: 700;">
-                                    <td colspan="7" class="text-end"><strong>Closing Balance</strong></td>
+                                    <td colspan="4" class="text-end"><strong>Closing Balance</strong></td>
                                     <td class="text-end">
-                                        <?php if($current_balance > 0): ?>
-                                            <span class="balance-positive">Rs <?php echo number_format($current_balance, 2); ?></span>
-                                        <?php elseif($current_balance < 0): ?>
-                                            <span class="balance-negative">-Rs <?php echo number_format(abs($current_balance), 2); ?></span>
+                                        <?php if($current_balance >= 0): ?>
+                                            <span class="balance-credit">Rs <?php echo number_format($current_balance, 2); ?> <small>(Credit)</small></span>
                                         <?php else: ?>
-                                            <span class="text-muted">Rs 0.00</span>
+                                            <span class="balance-advance">Rs <?php echo number_format(abs($current_balance), 2); ?> <small>(Advance)</small></span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="8" class="empty-state">
+                                    <td colspan="5" class="empty-state">
                                         <i class="fas fa-book-open"></i>
-                                        <p class="mb-0">No transactions found for this customer.</p>
-                                        <small class="text-muted">Add deliveries or payments to see ledger entries.</small>
+                                        <p class="mb-0">No transactions found for this supplier.</p>
+                                        <small class="text-muted">Add purchases or payments to see ledger entries.</small>
                                     </td>
                                 </tr>
                             <?php endif; ?>
@@ -441,36 +403,35 @@ if($customer_id && $ledger) {
 
                     <div class="print-divider"></div>
 
-                    <!-- CUSTOMER SECTION -->
+                    <!-- SUPPLIER SECTION -->
                     <div class="print-customer-section">
                         <div class="print-customer-row">
-                            <span class="print-label">Customer Name:</span>
-                            <span class="print-value"><?php echo htmlspecialchars($customer_name); ?> (<?php echo htmlspecialchars($customer_code); ?>)</span>
+                            <span class="print-label">Supplier Name:</span>
+                            <span class="print-value"><?php echo htmlspecialchars($supplier['supplier_name']); ?> (<?php echo htmlspecialchars($supplier['supplier_code']); ?>)</span>
                         </div>
                         <div class="print-customer-row">
                             <span class="print-label">Phone:</span>
-                            <span class="print-value"><?php echo htmlspecialchars($customer_mobile); ?></span>
+                            <span class="print-value"><?php echo htmlspecialchars($supplier['mobile']); ?></span>
                         </div>
-                        <?php if($customer_address): ?>
+                        <?php if($supplier['address']): ?>
                         <div class="print-customer-row">
                             <span class="print-label">Address:</span>
-                            <span class="print-value"><?php echo htmlspecialchars($customer_address); ?></span>
+                            <span class="print-value"><?php echo htmlspecialchars($supplier['address']); ?></span>
                         </div>
                         <?php endif; ?>
                         <div class="print-customer-row">
-                            <span class="print-label">Empty Bottles:</span>
-                            <span class="print-value"><?php echo number_format($customer_empties); ?></span>
-                        </div>
-                        <div class="print-customer-row">
-                            <span class="print-label">Security Deposit:</span>
-                            <span class="print-value">Rs <?php echo number_format($customer_deposit, 2); ?></span>
+                            <span class="print-label">Current Balance:</span>
+                            <span class="print-value">
+                                Rs <?php echo number_format(abs($current_balance), 2); ?>
+                                (<?php echo $current_balance >= 0 ? 'Credit' : 'Advance'; ?>)
+                            </span>
                         </div>
                     </div>
 
                     <div class="print-thin-divider"></div>
 
                     <div class="print-title-row">
-                        <span class="print-doc-title">Customer Ledger Statement</span>
+                        <span class="print-doc-title">Supplier Ledger Statement</span>
                         <?php if($from_date || $to_date): ?>
                             <span class="print-date-range">
                                 <?php echo $from_date ?: 'Start'; ?> to <?php echo $to_date ?: 'End'; ?>
@@ -485,12 +446,9 @@ if($customer_id && $ledger) {
                             <th style="width:40px;">#</th>
                             <th style="width:100px;">Date</th>
                             <th>Description</th>
-                            <th style="width:70px;" class="text-center">Delivered</th>
-                            <th style="width:70px;" class="text-center">Empty Returned</th>
-                            <th style="width:70px;" class="text-end">Rate (Rs)</th>
                             <th style="width:110px;" class="text-end">Debit (Rs)</th>
                             <th style="width:110px;" class="text-end">Credit (Rs)</th>
-                            <th style="width:110px;" class="text-end">Balance (Rs)</th>
+                            <th style="width:120px;" class="text-end">Balance (Rs)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -509,10 +467,7 @@ if($customer_id && $ledger) {
                             <tr>
                                 <td><?php echo $sno++; ?></td>
                                 <td><?php echo date('d-m-Y', strtotime($row['transaction_date'])); ?></td>
-                                <td><?php echo htmlspecialchars(($row['reference_type'] == 'delivery' && !empty($row['product_name'])) ? $row['product_name'] : $row['description']); ?></td>
-                                <td class="text-center"><?php echo ($row['reference_type'] == 'delivery' && $row['bottles_delivered'] !== null) ? $row['bottles_delivered'] : '-'; ?></td>
-                                <td class="text-center"><?php echo ($row['reference_type'] == 'delivery' && !empty($row['track_empty_bottles']) && $row['empty_bottles_returned'] !== null) ? $row['empty_bottles_returned'] : '-'; ?></td>
-                                <td class="text-end"><?php echo ($row['reference_type'] == 'delivery' && $row['bottle_rate'] !== null) ? number_format($row['bottle_rate'], 2) : '-'; ?></td>
+                                <td><?php echo htmlspecialchars($row['description']); ?></td>
                                 <td class="text-end"><?php echo $row['debit_amount'] > 0 ? number_format($row['debit_amount'], 2) : '-'; ?></td>
                                 <td class="text-end"><?php echo $row['credit_amount'] > 0 ? number_format($row['credit_amount'], 2) : '-'; ?></td>
                                 <td class="text-end"><?php echo number_format($balance, 2); ?></td>
@@ -520,13 +475,13 @@ if($customer_id && $ledger) {
                         <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
+                                <td colspan="6" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="text-end"><strong>Total</strong></td>
+                            <td colspan="3" class="text-end"><strong>Total</strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_debit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_credit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($current_balance, 2); ?></strong></td>
@@ -722,7 +677,7 @@ if($customer_id && $ledger) {
                         <!DOCTYPE html>
                         <html>
                         <head>
-                            <title>Ledger - <?php echo addslashes($customer_name); ?></title>
+                            <title>Ledger - <?php echo addslashes($supplier['supplier_name']); ?></title>
                             <style>
                                 @page { margin: 0; size: A4; }
                                 body { margin: 0; display: flex; justify-content: center; padding: 20px; }
@@ -753,17 +708,17 @@ if($customer_id && $ledger) {
         }
         </script>
 
-    <?php elseif($customer_id && !$customer_name): ?>
+    <?php elseif($supplier_id && !$supplier): ?>
         <div class="alert alert-warning rounded-4">
-            <i class="fas fa-exclamation-triangle me-2"></i> Customer not found. Please select a valid customer.
+            <i class="fas fa-exclamation-triangle me-2"></i> Supplier not found. Please select a valid supplier.
         </div>
     <?php else: ?>
         <!-- Empty State -->
         <div class="card ledger-card">
             <div class="card-body text-center py-5">
                 <i class="fas fa-book fa-4x mb-3 text-muted opacity-25"></i>
-                <h4 class="text-muted">Select a Customer to View Ledger</h4>
-                <p class="text-muted">Choose a customer from the dropdown above to see their complete transaction history.</p>
+                <h4 class="text-muted">Select a Supplier to View Ledger</h4>
+                <p class="text-muted">Choose a supplier from the dropdown above to see their complete transaction history.</p>
             </div>
         </div>
     <?php endif; ?>
@@ -772,8 +727,8 @@ if($customer_id && $ledger) {
     <div class="row mt-4">
         <div class="col-12">
             <div class="d-flex flex-wrap gap-3 justify-content-center">
-                <div><i class="fas fa-truck text-primary me-1"></i> <small>Water Delivery (Debit)</small></div>
-                <div><i class="fas fa-money-bill-wave text-success me-1"></i> <small>Payment Received (Credit)</small></div>
+                <div><i class="fas fa-shopping-cart text-primary me-1"></i> <small>Purchase (Credit)</small></div>
+                <div><i class="fas fa-money-bill-wave text-success me-1"></i> <small>Payment Made (Debit)</small></div>
                 <div><i class="fas fa-chart-line text-info me-1"></i> <small>Opening Balance</small></div>
             </div>
         </div>
@@ -783,11 +738,11 @@ if($customer_id && $ledger) {
 </div>
 
 <script>
-// Auto-submit when customer is selected (optional)
+// Auto-submit when supplier is selected
 document.addEventListener('DOMContentLoaded', function() {
-    const customerSelect = document.querySelector('select[name="customer_id"]');
-    if(customerSelect) {
-        customerSelect.addEventListener('change', function() {
+    const supplierSelect = document.querySelector('select[name="supplier_id"]');
+    if(supplierSelect) {
+        supplierSelect.addEventListener('change', function() {
             if(this.value) {
                 this.closest('form').submit();
             }

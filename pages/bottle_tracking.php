@@ -27,7 +27,10 @@ if ($customer_id) {
             $date_condition = "AND DATE(tracking_date) <= '$to_date'";
         }
         
-        $tracking_query = "SELECT * FROM bottle_tracking WHERE customer_id=$customer_id $date_condition ORDER BY tracking_date DESC";
+        $tracking_query = "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+                           LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
+                           LEFT JOIN products p ON d.product_id = p.id 
+                           WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC";
         $tracking = mysqli_query($conn, $tracking_query);
     }
 }
@@ -304,6 +307,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                         <thead>
                             <tr>
                                 <th style="width: 140px">Date & Time</th>
+                                <th style="width: 160px">Bottle</th>
                                 <th style="width: 100px" class="text-center">Delivered</th>
                                 <th style="width: 100px" class="text-center">Returned</th>
                                 <th style="width: 100px" class="text-center">Broken</th>
@@ -318,6 +322,12 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                         <td>
                                             <i class="far fa-calendar-alt me-1 text-muted"></i>
                                             <?php echo date('d-m-Y h:i A', strtotime($t['tracking_date'])); ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">
+                                                <i class="fas fa-wine-bottle me-1"></i>
+                                                <?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?>
+                                            </span>
                                         </td>
                                         <td class="text-center">
                                             <?php if($t['bottles_delivered'] > 0): ?>
@@ -358,7 +368,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                 <?php endwhile; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" class="empty-state">
+                                    <td colspan="7" class="empty-state">
                                         <i class="fas fa-boxes"></i>
                                         <p class="mb-0">No bottle movement found for this customer.</p>
                                         <small class="text-muted">Bottle tracking is automatically created when deliveries are recorded.</small>

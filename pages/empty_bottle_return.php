@@ -2,19 +2,70 @@
 require_once '../includes/db.php';
 if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
+$is_salesman_user = is_salesman();
+$salesman_name = $is_salesman_user ? mysqli_real_escape_string($conn, $_SESSION['admin_name']) : '';
+
+$message = '';
+
+// ---- DELETE Customer ----
+if (isset($_GET['delete'])) {
+    $id = intval($_GET['delete']);
+    if ($is_salesman_user) {
+        $check = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt FROM customers c WHERE id=$id AND " . salesman_match_condition($conn)));
+        if (!$check['cnt']) {
+            header("Location: empty_bottle_return.php");
+            exit();
+        }
+    }
+    mysqli_query($conn, "DELETE FROM customers WHERE id = $id");
+    header("Location: empty_bottle_return.php?msg=deleted");
+    exit();
+}
+
+// ---- EDIT Customer ----
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_customer'])) {
+    $id = intval($_POST['customer_id']);
+    $can_edit = true;
+    if ($is_salesman_user) {
+        $check = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt FROM customers c WHERE id=$id AND " . salesman_match_condition($conn)));
+        if (!$check['cnt']) $can_edit = false;
+    }
+    if ($can_edit) {
+        $name = mysqli_real_escape_string($conn, $_POST['customer_name']);
+        $mobile = mysqli_real_escape_string($conn, $_POST['mobile']);
+        $address = mysqli_real_escape_string($conn, $_POST['address']);
+        $salesman = $is_salesman_user ? $salesman_name : mysqli_real_escape_string($conn, $_POST['customer_salesman']);
+        $deposit = floatval($_POST['security_deposit']);
+        $empties = intval($_POST['empty_bottles_balance']);
+        $status = $_POST['status'];
+        $sql = "UPDATE customers SET customer_name='$name', mobile='$mobile', address='$address', security_deposit=$deposit, empty_bottles_balance=$empties, salesman='$salesman', status='$status' WHERE id=$id";
+        if (mysqli_query($conn, $sql)) {
+            $message = "<div class='alert alert-success'>Customer updated!</div>";
+        } else {
+            $message = "<div class='alert alert-danger'>Update failed: " . mysqli_error($conn) . "</div>";
+        }
+    } else {
+        $message = "<div class='alert alert-danger'>You can only edit your own customers.</div>";
+    }
+}
+if (isset($_GET['msg']) && $_GET['msg'] == 'deleted') $message = "<div class='alert alert-success'>Customer deleted.</div>";
+
 $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
 $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : '';
 $to_date = isset($_GET['to_date']) ? $_GET['to_date'] : '';
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 $tracking = [];
 $customer_name = '';
 $customer_mobile = '';
+$customer_code = '';
 $current_empty_balance = 0;
 
 if ($customer_id) {
-    $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_name, mobile, empty_bottles_balance FROM customers WHERE id=$customer_id"));
+    $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_name, mobile, customer_code, empty_bottles_balance FROM customers WHERE id=$customer_id"));
     if($cust) {
         $customer_name = $cust['customer_name'];
         $customer_mobile = $cust['mobile'];
+        $customer_code = $cust['customer_code'] ?? '';
         $current_empty_balance = $cust['empty_bottles_balance'];
         
         // Apply date filters
@@ -27,12 +78,18 @@ if ($customer_id) {
             $date_condition = "AND DATE(tracking_date) <= '$to_date'";
         }
         
-        $tracking_query = "SELECT * FROM bottle_tracking WHERE customer_id=$customer_id $date_condition ORDER BY tracking_date DESC";
+        $tracking_query = "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+                           LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
+                           LEFT JOIN products p ON d.product_id = p.id 
+                           WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC";
         $tracking = mysqli_query($conn, $tracking_query);
     }
 }
 
-$customers = mysqli_query($conn, "SELECT id, customer_name, mobile, empty_bottles_balance FROM customers WHERE status='Active' ORDER BY customer_name");
+$where_cust = " WHERE c.status='Active'";
+if ($search) $where_cust .= " AND (c.customer_name LIKE '%$search%' OR c.customer_code LIKE '%$search%' OR c.mobile LIKE '%$search%')";
+$where_cust .= $is_salesman_user ? " AND " . salesman_match_condition($conn) : '';
+$customers = mysqli_query($conn, "SELECT c.id, c.customer_code, c.customer_name, c.mobile, c.address, c.salesman, c.security_deposit, c.empty_bottles_balance, c.status FROM customers c $where_cust ORDER BY c.customer_name");
 
 // Calculate summary stats
 $total_delivered = 0;
@@ -63,12 +120,6 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     color: white;
     padding: 15px 20px;
     font-weight: 600;
-}
-.customer-select-card {
-    background: linear-gradient(135deg, #A04657 0%, #c75c6f 100%);
-    border-radius: 20px;
-    padding: 20px;
-    margin-bottom: 25px;
 }
 .customer-info-card {
     background: white;
@@ -115,6 +166,13 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
 }
 .tracking-table tr:hover {
     background-color: #f8f9fa;
+}
+.btn-xs {
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.3;
+    border-radius: 6px;
+    white-space: nowrap;
 }
 .filter-box {
     background: white;
@@ -184,38 +242,107 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
         <h2 class="page-heading mb-2 mb-sm-0">
             <i class="fas fa-cubes me-2" style="color: #A04657;"></i> Bottle Tracking
         </h2>
+        <div class="d-flex gap-2 no-print">
+            <?php if($customer_id): ?>
+                <button onclick="printCustomerHistory()" class="btn btn-outline-dark rounded-pill px-4">
+                    <i class="fas fa-print me-2"></i> Print
+                </button>
+                <a href="?search=<?php echo urlencode($search); ?>" class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="fas fa-arrow-left me-2"></i> Back to All Customers
+                </a>
+            <?php else: ?>
+                <button onclick="printCustomers()" class="btn btn-outline-dark rounded-pill px-4">
+                    <i class="fas fa-print me-2"></i> Print
+                </button>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <!-- Customer Selection Card -->
-    <div class="customer-select-card">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <form method="GET" class="row g-3 align-items-end">
-                    <div class="col-md-8">
-                        <label class="form-label text-white mb-1">
-                            <i class="fas fa-user me-1"></i> Select Customer
-                        </label>
-                        <select name="customer_id" class="form-select rounded-pill" style="border-radius: 30px;" onchange="this.form.submit()">
-                            <option value="">-- Choose Customer --</option>
-                            <?php while($c = mysqli_fetch_assoc($customers)): ?>
-                                <option value="<?php echo $c['id']; ?>" <?php echo ($customer_id == $c['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($c['customer_name']); ?> - <?php echo $c['mobile']; ?> (Empty: <?php echo $c['empty_bottles_balance']; ?>)
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <a href="?customer_id=<?php echo $customer_id; ?>" class="btn btn-light w-100 rounded-pill" <?php echo !$customer_id ? 'style="display:none;"' : ''; ?>>
-                            <i class="fas fa-sync-alt me-2"></i> Refresh
-                        </a>
-                    </div>
-                </form>
-            </div>
-            <div class="col-md-4 text-end d-none d-md-block">
-                <i class="fas fa-chart-bar fa-3x text-white opacity-50"></i>
+    <?php echo $message; ?>
+
+    <?php if(!$customer_id): ?>
+    <!-- All Customers Summary -->
+    <div class="card tracking-card mb-4">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center">
+            <span><i class="fas fa-users me-2"></i> All Customers - Empty Bottles Summary</span>
+        </div>
+        <div class="card-body p-4">
+            <form method="GET" class="row g-3 align-items-end mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search by ID or Customer Name</label>
+                    <input type="text" name="search" class="form-control" placeholder="Enter customer ID or name..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-secondary w-100" style="height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-search me-2"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <a href="?" class="btn btn-outline-secondary w-100" style="height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-undo me-1"></i> Reset
+                    </a>
+                </div>
+            </form>
+            <div class="table-responsive">
+                <table class="table tracking-table mb-0" id="customersSummaryTable">
+                    <thead>
+                        <tr>
+                            <th style="width:80px">ID</th>
+                            <th>Customer Name</th>
+                            <th style="min-width:110px">Mobile</th>
+                            <th style="width:130px" class="text-center">Empty Bottles</th>
+                            <th style="width:190px" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if($customers && mysqli_num_rows($customers) > 0):
+                            mysqli_data_seek($customers, 0);
+                            while($c = mysqli_fetch_assoc($customers)): ?>
+                            <tr>
+                                <td class="fw-semibold"><?php echo htmlspecialchars($c['customer_code']); ?></td>
+                                <td><strong><?php echo htmlspecialchars($c['customer_name']); ?></strong></td>
+                                <td><?php echo htmlspecialchars($c['mobile'] ?? '-'); ?></td>
+                                <td class="text-center">
+                                    <span class="badge <?php echo $c['empty_bottles_balance'] > 0 ? 'bg-primary' : 'bg-secondary'; ?> rounded-pill px-3">
+                                        <?php echo number_format($c['empty_bottles_balance']); ?>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="?customer_id=<?php echo $c['id']; ?>&search=<?php echo urlencode($search); ?>" class="btn btn-xs btn-outline-primary" title="View History">
+                                            <i class="fas fa-eye me-1"></i> History
+                                        </a>
+                                        <button type="button" class="btn btn-xs btn-warning editCustomerBtn" title="Edit"
+                                            data-id="<?php echo $c['id']; ?>"
+                                            data-name="<?php echo htmlspecialchars($c['customer_name']); ?>"
+                                            data-mobile="<?php echo htmlspecialchars($c['mobile'] ?? ''); ?>"
+                                            data-address="<?php echo htmlspecialchars($c['address'] ?? '', ENT_QUOTES); ?>"
+                                            data-salesman="<?php echo htmlspecialchars($c['salesman'] ?? ''); ?>"
+                                            data-deposit="<?php echo $c['security_deposit']; ?>"
+                                            data-empties="<?php echo $c['empty_bottles_balance']; ?>"
+                                            data-status="<?php echo htmlspecialchars($c['status'] ?? 'Active'); ?>">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="?delete=<?php echo $c['id']; ?>" class="btn btn-xs btn-danger" onclick="return confirm('Delete customer? This will remove all related deliveries, payments, and ledger entries.')" title="Delete">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endwhile; else: ?>
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    <i class="fas fa-users-slash fa-3x mb-2 d-block opacity-25"></i>
+                                    No customers found.
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if($customer_id && $customer_name): ?>
         <!-- Customer Info -->
@@ -302,6 +429,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                         <thead>
                             <tr>
                                 <th style="width: 140px">Date & Time</th>
+                                <th style="width: 160px">Bottle</th>
                                 <th style="width: 100px" class="text-center">Delivered</th>
                                 <th style="width: 100px" class="text-center">Returned</th>
                                 <th style="width: 100px" class="text-center">Broken</th>
@@ -337,6 +465,12 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                         <td>
                                             <i class="far fa-calendar-alt me-1 text-muted"></i>
                                             <?php echo date('d-m-Y h:i A', strtotime($t['tracking_date'])); ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">
+                                                <i class="fas fa-wine-bottle me-1"></i>
+                                                <?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?>
+                                            </span>
                                         </td>
                                         <td class="text-center">
                                             <?php if($t['bottles_delivered'] > 0): ?>
@@ -391,7 +525,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" class="empty-state">
+                                    <td colspan="7" class="empty-state">
                                         <i class="fas fa-boxes"></i>
                                         <p class="mb-0">No bottle movement found for this customer.</p>
                                         <small class="text-muted">Bottle tracking is created when deliveries or returns are recorded.</small>
@@ -419,18 +553,491 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
         <div class="alert alert-warning rounded-4">
             <i class="fas fa-exclamation-triangle me-2"></i> Customer not found. Please select a valid customer.
         </div>
-    <?php else: ?>
-        <!-- Empty State -->
-        <div class="card tracking-card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-boxes fa-4x mb-3 text-muted opacity-25"></i>
-                <h4 class="text-muted">Select a Customer to View Bottle Tracking</h4>
-                <p class="text-muted">Choose a customer from the dropdown above to see their bottle movement history.</p>
-            </div>
-        </div>
     <?php endif; ?>
 
 </div>
 </div>
+
+<!-- Edit Customer Modal -->
+<div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header bg-info text-white border-0 rounded-top-4">
+                <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i> Edit Customer</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="customer_id" id="edit_id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Full Name *</label>
+                            <input type="text" name="customer_name" id="edit_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Mobile Number</label>
+                            <input type="text" name="mobile" id="edit_mobile" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Address</label>
+                            <textarea name="address" id="edit_address" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Salesman</label>
+                            <input type="text" name="customer_salesman" id="edit_customer_salesman" class="form-control" placeholder="Salesman" <?php echo $is_salesman_user ? 'readonly' : ''; ?>>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Security Deposit (Rs)</label>
+                            <input type="number" step="0.01" name="security_deposit" id="edit_deposit" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Empty Bottles Balance</label>
+                            <input type="number" name="empty_bottles_balance" id="edit_empties" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" id="edit_status" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" name="edit_customer" class="btn btn-primary rounded-pill px-4">Update Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Print Overlay -->
+<div id="print-overlay">
+    <div id="print-area">
+        <div class="print-header">
+            <div class="print-brand-row">
+                <div class="print-logo-circle">
+                    <i class="fas fa-tint"></i>
+                </div>
+                <div class="print-brand-text">
+                    <div class="print-owner-name"><?php echo htmlspecialchars($owner_name); ?></div>
+                    <div class="print-company"><?php echo htmlspecialchars($company_name); ?></div>
+                    <div class="print-address"><?php echo htmlspecialchars($owner_address); ?></div>
+                    <div class="print-phone"><?php echo htmlspecialchars($owner_phone); ?></div>
+                </div>
+            </div>
+            <div class="print-divider"></div>
+            <div class="print-title-row">
+                <span class="print-doc-title">Empty Bottles Summary</span>
+                <?php if($search): ?>
+                    <span class="print-date-range">Search: <?php echo htmlspecialchars($search); ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;">#</th>
+                    <th style="width:60px;">ID</th>
+                    <th>Customer Name</th>
+                    <th>Mobile</th>
+                    <th style="width:100px;" class="text-end">Empty Bottles</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $print_customers = mysqli_query($conn, "SELECT c.customer_code, c.customer_name, c.mobile, c.empty_bottles_balance FROM customers c $where_cust ORDER BY c.customer_name");
+                $sno = 1;
+                $total_empties = 0;
+                if($print_customers && mysqli_num_rows($print_customers) > 0):
+                    while($pc = mysqli_fetch_assoc($print_customers)):
+                        $total_empties += $pc['empty_bottles_balance'];
+                ?>
+                    <tr>
+                        <td><?php echo $sno++; ?></td>
+                        <td><?php echo htmlspecialchars($pc['customer_code']); ?></td>
+                        <td><strong><?php echo htmlspecialchars($pc['customer_name']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($pc['mobile'] ?? '-'); ?></td>
+                        <td class="text-end"><?php echo number_format($pc['empty_bottles_balance']); ?></td>
+                    </tr>
+                <?php endwhile; ?>
+                    <tr style="font-weight:700;background:#f0f0f0;">
+                        <td colspan="4" class="text-end">Total</td>
+                        <td class="text-end"><?php echo number_format($total_empties); ?></td>
+                    </tr>
+                <?php else: ?>
+                    <tr><td colspan="5" class="text-center" style="padding:40px;color:#999;">No customers found.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <div class="print-footer">
+            Generated on: <?php echo date('d-m-Y h:i A'); ?>
+        </div>
+    </div>
+</div>
+
+<style>
+#print-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    z-index: 999999;
+    overflow: auto;
+}
+#print-area {
+    width: 794px;
+    margin: 0 auto;
+    padding: 35px 40px;
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    color: #222;
+}
+.print-header {
+    margin-bottom: 22px;
+}
+.print-brand-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+.print-logo-circle {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #A04657, #c96b7e);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+    flex-shrink: 0;
+}
+.print-brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.print-company {
+    font-size: 18px;
+    font-weight: 700;
+    color: #A04657;
+    font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif;
+}
+.print-owner-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: #222;
+    font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif;
+}
+.print-address {
+    font-size: 13px;
+    color: #666;
+}
+.print-phone {
+    font-size: 14px;
+    font-weight: 600;
+    color: #A04657;
+}
+.print-divider {
+    height: 2px;
+    background: linear-gradient(to right, #A04657, #e0a0ab);
+    margin: 14px 0 10px;
+    border-radius: 2px;
+}
+.print-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.print-doc-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #444;
+    font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif;
+}
+.print-date-range {
+    font-size: 12px;
+    color: #888;
+    background: #f5f5f5;
+    padding: 5px 14px;
+    border-radius: 20px;
+}
+.print-customer-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    font-size: 12px;
+    color: #555;
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+}
+.print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.print-table th {
+    background: #A04657;
+    color: #fff;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 12px;
+    text-align: left;
+}
+.print-table th.text-end,
+.print-table td.text-end {
+    text-align: right;
+}
+.print-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #e6e6e6;
+    color: #333;
+}
+.print-table tbody tr:nth-child(even) {
+    background: #f9f9f9;
+}
+.print-table tbody tr:last-child td {
+    border-bottom: 2px solid #A04657;
+}
+.print-footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+</style>
+
+<!-- History Print Overlay -->
+<div id="print-overlay-history" style="display:none;">
+    <div id="print-area-history">
+        <div class="print-header">
+            <div class="print-brand-row">
+                <div class="print-logo-circle">
+                    <i class="fas fa-tint"></i>
+                </div>
+                <div class="print-brand-text">
+                    <div class="print-owner-name"><?php echo htmlspecialchars($owner_name); ?></div>
+                    <div class="print-company"><?php echo htmlspecialchars($company_name); ?></div>
+                    <div class="print-address"><?php echo htmlspecialchars($owner_address); ?></div>
+                    <div class="print-phone"><?php echo htmlspecialchars($owner_phone); ?></div>
+                </div>
+            </div>
+            <div class="print-divider"></div>
+            <div class="print-title-row">
+                <span class="print-doc-title">Empty Bottles History - <?php echo htmlspecialchars($customer_name); ?></span>
+                <span class="print-date-range">Code: <?php echo htmlspecialchars($customer_code ?? '-'); ?></span>
+            </div>
+        </div>
+
+        <div class="print-customer-info">
+            <span>Mobile: <?php echo htmlspecialchars($customer_mobile ?: '-'); ?></span>
+            <span>Current Empty Bottles: <strong><?php echo $current_empty_balance; ?></strong></span>
+            <span>Delivered: <strong><?php echo $total_delivered; ?></strong></span>
+            <span>Returned: <strong><?php echo $total_returned; ?></strong></span>
+            <?php if($from_date || $to_date): ?>
+                <span>Period: <?php echo $from_date ?: 'Start'; ?> to <?php echo $to_date ?: 'Today'; ?></span>
+            <?php endif; ?>
+        </div>
+
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Bottle</th>
+                    <th class="text-end">Delivered</th>
+                    <th class="text-end">Returned</th>
+                    <th class="text-end">Broken</th>
+                    <th class="text-end">After This</th>
+                    <th>Notes / Reference</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $print_history_rows = [];
+                if($customer_id && $customer_name) {
+                    $print_tracking = mysqli_query($conn, "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+                                                            LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
+                                                            LEFT JOIN products p ON d.product_id = p.id 
+                                                            WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC");
+                    if($print_tracking && mysqli_num_rows($print_tracking) > 0) {
+                        while($pt = mysqli_fetch_assoc($print_tracking)) $print_history_rows[] = $pt;
+                        $after_map = [];
+                        $running_empty = $current_empty_balance;
+                        foreach($print_history_rows as $t) {
+                            $after_map[$t['id']] = $running_empty;
+                            if($t['bottles_delivered'] > 0) $running_empty = $running_empty - $t['bottles_delivered'];
+                            if($t['bottles_returned'] > 0) $running_empty = $running_empty + $t['bottles_returned'];
+                            if(($t['bottles_broken'] ?? 0) > 0) $running_empty = $running_empty + ($t['bottles_broken'] ?? 0);
+                        }
+                        $print_history_rows = array_reverse($print_history_rows);
+                    }
+                }
+                if(!empty($print_history_rows)):
+                    foreach($print_history_rows as $t):
+                        $after_val = $after_map[$t['id']] ?? $current_empty_balance;
+                ?>
+                    <tr>
+                        <td><?php echo date('d-m-Y h:i A', strtotime($t['tracking_date'])); ?></td>
+                        <td><?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?></td>
+                        <td class="text-end"><?php echo $t['bottles_delivered'] > 0 ? $t['bottles_delivered'] : '—'; ?></td>
+                        <td class="text-end"><?php echo $t['bottles_returned'] > 0 ? $t['bottles_returned'] : '—'; ?></td>
+                        <td class="text-end"><?php echo ($t['bottles_broken'] ?? 0) > 0 ? ($t['bottles_broken'] ?? 0) : '—'; ?></td>
+                        <td class="text-end"><strong><?php echo $after_val; ?></strong></td>
+                        <td>
+                            <?php
+                            if($t['notes']) {
+                                echo htmlspecialchars($t['notes']);
+                            } elseif(($t['reference_type'] ?? '') == 'return_only') {
+                                echo 'Empty bottle return only';
+                            } elseif(($t['reference_type'] ?? '') == 'delivery') {
+                                echo 'Water delivery';
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php else: ?>
+                    <tr><td colspan="7" class="text-center" style="padding:40px;color:#999;">No bottle movement found.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <div class="print-footer">
+            Generated on: <?php echo date('d-m-Y h:i A'); ?>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+function printCustomers() {
+    const overlay = document.getElementById('print-overlay');
+    const printArea = document.getElementById('print-area');
+    overlay.style.display = 'block';
+
+    setTimeout(function() {
+        html2canvas(printArea, {
+            scale: 3,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            width: printArea.scrollWidth,
+            height: printArea.scrollHeight
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const w = window.open('', '_blank');
+            w.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Empty Bottles Summary</title>
+                    <style>
+                        @page { margin: 0; size: A4 landscape; }
+                        body { margin: 0; display: flex; justify-content: center; padding: 20px; }
+                        img { max-width: 100%; height: auto; }
+                    </style>
+                </head>
+                <body>
+                    <img src="${imgData}" />
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 300);
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            w.document.close();
+            overlay.style.display = 'none';
+        }).catch(err => {
+            console.error(err);
+            alert('Print failed. Please try again.');
+            overlay.style.display = 'none';
+        });
+    }, 200);
+}
+
+function printCustomerHistory() {
+    const overlay = document.getElementById('print-overlay-history');
+    const printArea = document.getElementById('print-area-history');
+    overlay.style.display = 'block';
+
+    setTimeout(function() {
+        html2canvas(printArea, {
+            scale: 3,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            width: printArea.scrollWidth,
+            height: printArea.scrollHeight
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const w = window.open('', '_blank');
+            w.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Empty Bottles History</title>
+                    <style>
+                        @page { margin: 0; size: A4 landscape; }
+                        body { margin: 0; display: flex; justify-content: center; padding: 20px; }
+                        img { max-width: 100%; height: auto; }
+                    </style>
+                </head>
+                <body>
+                    <img src="${imgData}" />
+                    <script>
+                        window.onload = function() {
+                            setTimeout(function() {
+                                window.print();
+                                window.close();
+                            }, 300);
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            w.document.close();
+            overlay.style.display = 'none';
+        }).catch(err => {
+            console.error(err);
+            alert('Print failed. Please try again.');
+            overlay.style.display = 'none';
+        });
+    }, 200);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.editCustomerBtn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('edit_id').value = this.getAttribute('data-id');
+            document.getElementById('edit_name').value = this.getAttribute('data-name');
+            document.getElementById('edit_mobile').value = this.getAttribute('data-mobile');
+            document.getElementById('edit_address').value = this.getAttribute('data-address');
+            document.getElementById('edit_customer_salesman').value = this.getAttribute('data-salesman');
+            document.getElementById('edit_deposit').value = this.getAttribute('data-deposit');
+            document.getElementById('edit_empties').value = this.getAttribute('data-empties');
+            document.getElementById('edit_status').value = this.getAttribute('data-status');
+            var editModal = new bootstrap.Modal(document.getElementById('editCustomerModal'));
+            editModal.show();
+        });
+    });
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>

@@ -110,6 +110,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                     <?php if($supplier['contact_person']): ?>
                         <small class="text-muted">Contact: <?php echo htmlspecialchars($supplier['contact_person']); ?></small>
                     <?php endif; ?>
+                    <div><span class="badge bg-primary rounded-pill mt-1">Supplier ID: <?php echo htmlspecialchars($supplier['supplier_code']); ?></span></div>
                 </div>
             </div>
         </div>
@@ -259,6 +260,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                             <thead>
                                 <tr>
                                     <th>Date</th>
+                                    <th>Voucher #</th>
                                     <th>Invoice #</th>
                                     <th>Subtotal</th>
                                     <th>Discount</th>
@@ -274,6 +276,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                                     <?php while($purchase = mysqli_fetch_assoc($purchase_result)): ?>
                                         <tr>
                                             <td><?php echo date('d-m-Y', strtotime($purchase['purchase_date'])); ?></td>
+                                            <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($purchase['voucher_no'] ?? '—'); ?></span></td>
                                             <td><?php echo htmlspecialchars($purchase['invoice_no'] ?? 'N/A'); ?></td>
                                             <td>Rs <?php echo number_format($purchase['subtotal'], 2); ?></td>
                                             <td>
@@ -308,7 +311,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                                     <?php endwhile; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="9" class="text-center py-4 text-muted">
+                                        <td colspan="10" class="text-center py-4 text-muted">
                                             <i class="fas fa-shopping-cart fa-2x mb-2 d-block"></i>
                                             No purchase records found.
                                          </td>
@@ -333,6 +336,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                             <thead>
                                 <tr>
                                     <th>Date</th>
+                                    <th>Voucher No</th>
                                     <th>Amount</th>
                                     <th>Payment Type</th>
                                     <th>Reference</th>
@@ -344,6 +348,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                                     <?php while($payment = mysqli_fetch_assoc($payment_result)): ?>
                                         <tr>
                                             <td><?php echo date('d-m-Y H:i', strtotime($payment['payment_datetime'])); ?></td>
+                                            <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($payment['voucher_no'] ?? '—'); ?></span></td>
                                             <td class="text-success fw-bold">Rs <?php echo number_format($payment['payment_amount'], 2); ?></td>
                                             <td>
                                                 <?php 
@@ -358,7 +363,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                                     <?php endwhile; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">
+                                        <td colspan="6" class="text-center py-4 text-muted">
                                             <i class="fas fa-money-bill-wave fa-2x mb-2 d-block"></i>
                                             No payment records found.
                                          </td>

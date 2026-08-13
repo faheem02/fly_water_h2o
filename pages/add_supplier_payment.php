@@ -45,15 +45,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
         mysqli_begin_transaction($conn);
         
         try {
+            // Generate system voucher number
+            $payment_voucher = generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
+
             // Insert payment record
             $payment_query = "INSERT INTO supplier_payments 
-                            (supplier_id, purchase_id, payment_amount, payment_type, cheque_no, notes, payment_datetime, created_datetime) 
+                            (voucher_no, supplier_id, purchase_id, payment_amount, payment_type, cheque_no, notes, payment_datetime, created_datetime) 
                             VALUES 
-                            ($supplier_id, " . ($purchase_id ? $purchase_id : "NULL") . ", $payment_amount, '$payment_type', '$cheque_no', '$notes', NOW(), NOW())";
+                            ('$payment_voucher', $supplier_id, " . ($purchase_id ? $purchase_id : "NULL") . ", $payment_amount, '$payment_type', '$cheque_no', '$notes', NOW(), NOW())";
             
             if(!mysqli_query($conn, $payment_query)){
                 throw new Exception("Error saving payment: " . mysqli_error($conn));
             }
+            $payment_id = mysqli_insert_id($conn);
             
             // Update purchase record if linked
             if($purchase_id){
@@ -90,6 +94,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
             
             if(!mysqli_query($conn, $ledger_query)){
                 throw new Exception("Error updating supplier ledger: " . mysqli_error($conn));
+            }
+            
+            // Add to cashbook (Outflow)
+            $sup_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT supplier_name FROM suppliers WHERE id = $supplier_id"));
+            $sup_name = $sup_row ? $sup_row['supplier_name'] : 'Supplier #' . $supplier_id;
+            $cash_desc = "Supplier: " . mysqli_real_escape_string($conn, $sup_name) . " - Payment made";
+            if($notes) $cash_desc .= " - " . $notes;
+            $last_balance = mysqli_fetch_assoc(mysqli_query($conn, "SELECT balance FROM cashbook ORDER BY id DESC LIMIT 1"))['balance'] ?? 0;
+            $new_cash_balance = $last_balance - $payment_amount;
+            if(!mysqli_query($conn, "INSERT INTO cashbook (transaction_date, transaction_type, reference_type, reference_id, description, amount, balance, created_datetime) 
+                                     VALUES (NOW(), 'expense', 'supplier_payment', $payment_id, '$cash_desc', $payment_amount, $new_cash_balance, NOW())")){
+                throw new Exception("Error updating cashbook: " . mysqli_error($conn));
             }
             
             mysqli_commit($conn);
@@ -234,7 +250,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                             <option value="">No specific purchase (General Payment)</option>
                             <?php while($credit = mysqli_fetch_assoc($credit_result)): ?>
                                 <option value="<?php echo $credit['id']; ?>">
-                                    Purchase #<?php echo $credit['id']; ?> - 
+                                    <?php echo $credit['voucher_no'] ?? ('Purchase #' . $credit['id']); ?> - 
                                     Date: <?php echo date('d-m-Y', strtotime($credit['purchase_date'])); ?> - 
                                     Credit: Rs <?php echo number_format($credit['credit_amount'], 2); ?>
                                 </option>
@@ -304,6 +320,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                     <thead class="table-light">
                         <tr>
                             <th>Date</th>
+                            <th>Voucher No</th>
                             <th>Amount</th>
                             <th>Type</th>
                             <th>Purchase #</th>
@@ -315,6 +332,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                         <?php while($recent = mysqli_fetch_assoc($recent_result)): ?>
                         <tr>
                             <td><?php echo date('d-m-Y h:i A', strtotime($recent['payment_datetime'])); ?></td>
+                            <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($recent['voucher_no'] ?? '—'); ?></span></td>
                             <td class="text-success fw-bold">Rs <?php echo number_format($recent['payment_amount'], 2); ?></td>
                             <td>
                                 <?php 

@@ -139,18 +139,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     <div class="card info-card shadow-sm border-0 mb-4">
         <div class="card-body">
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <small class="text-muted">Supplier ID</small>
+                    <h5 class="mb-0"><?php echo htmlspecialchars($supplier['supplier_code']); ?></h5>
+                </div>
+                <div class="col-md-3">
                     <small class="text-muted">Opening Balance</small>
                     <h5 class="mb-0">Rs <?php echo number_format($supplier['opening_balance'], 2); ?></h5>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <small class="text-muted">Current Balance</small>
                     <h5 class="mb-0 <?php echo $supplier['current_balance'] >= 0 ? 'text-warning' : 'text-success'; ?>">
                         Rs <?php echo number_format(abs($supplier['current_balance']), 2); ?>
                         <small>(<?php echo $supplier['current_balance'] >= 0 ? 'Credit' : 'Advance'; ?>)</small>
                     </h5>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <small class="text-muted">Note</small>
                     <p class="mb-0 text-muted small"><i class="fas fa-info-circle me-1"></i> Opening balance cannot be edited here. Use ledger adjustments if needed.</p>
                 </div>

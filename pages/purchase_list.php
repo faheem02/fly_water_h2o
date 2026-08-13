@@ -14,7 +14,7 @@ $query = "SELECT p.*, s.supplier_name
           WHERE 1=1";
 
 if($search){
-    $query .= " AND (s.supplier_name LIKE '%$search%' OR p.invoice_no LIKE '%$search%')";
+    $query .= " AND (s.supplier_name LIKE '%$search%' OR p.invoice_no LIKE '%$search%' OR p.voucher_no LIKE '%$search%')";
 }
 if($supplier_filter > 0){
     $query .= " AND p.supplier_id = $supplier_filter";
@@ -27,7 +27,7 @@ $query .= " ORDER BY p.purchase_date DESC";
 $result = mysqli_query($conn, $query);
 
 // Get suppliers for filter
-$suppliers_query = "SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name";
+$suppliers_query = "SELECT id, supplier_code, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name";
 $suppliers_result = mysqli_query($conn, $suppliers_query);
 
 // Get statistics
@@ -218,7 +218,7 @@ $stats = mysqli_fetch_assoc($stats_result);
             <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Supplier name or invoice..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" name="search" class="form-control" placeholder="Voucher #, supplier name or invoice..." value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold"><i class="fas fa-truck me-1"></i> Supplier</label>
@@ -228,7 +228,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                         mysqli_data_seek($suppliers_result, 0);
                         while($sup = mysqli_fetch_assoc($suppliers_result)): ?>
                             <option value="<?php echo $sup['id']; ?>" <?php echo $supplier_filter == $sup['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($sup['supplier_name']); ?>
+                                <?php echo htmlspecialchars($sup['supplier_name']); ?> [<?php echo htmlspecialchars($sup['supplier_code']); ?>]
                             </option>
                         <?php endwhile; ?>
                     </select>
@@ -262,6 +262,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                     <thead>
                         <tr>
                             <th style="width:50px">ID</th>
+                            <th style="min-width:100px">Voucher #</th>
                             <th style="min-width:100px">Date</th>
                             <th style="min-width:100px">Invoice #</th>
                             <th style="min-width:160px">Supplier</th>
@@ -292,6 +293,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                             ?>
                                 <tr>
                                     <td class="text-center fw-semibold"><?php echo $row['id']; ?></td>
+                                    <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($row['voucher_no'] ?? '—'); ?></span></td>
                                     <td><?php echo date('d-m-Y', strtotime($row['purchase_date'])); ?></td>
                                     <td><?php echo htmlspecialchars($row['invoice_no'] ?? 'N/A'); ?></td>
                                     <td><strong><?php echo htmlspecialchars($row['supplier_name']); ?></strong></td>
@@ -323,7 +325,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="11" class="text-center py-5 text-muted">
+                                <td colspan="12" class="text-center py-5 text-muted">
                                     <i class="fas fa-shopping-cart fa-3x mb-3 d-block"></i>
                                     No purchase records found. Click <strong>"New Purchase"</strong> to get started.
                                   </td

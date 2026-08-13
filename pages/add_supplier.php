@@ -19,8 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supplier'])) {
     if (empty($supplier_name) || empty($mobile)) {
         $message = "<div class='alert alert-danger'>Supplier Name and Mobile are required!</div>";
     } else {
-        $query = "INSERT INTO suppliers (supplier_name, contact_person, mobile, phone, email, address, ntn_no, opening_balance, current_balance, status, created_datetime) 
-                  VALUES ('$supplier_name', '$contact_person', '$mobile', '$phone', '$email', '$address', '$ntn_no', $opening_balance, $opening_balance, '$status', '$datetime')";
+        $supplier_code = generate_5digit_code($conn, 'suppliers', 'supplier_code');
+        $query = "INSERT INTO suppliers (supplier_code, supplier_name, contact_person, mobile, phone, email, address, ntn_no, opening_balance, current_balance, status, created_datetime) 
+                  VALUES ('$supplier_code', '$supplier_name', '$contact_person', '$mobile', '$phone', '$email', '$address', '$ntn_no', $opening_balance, $opening_balance, '$status', '$datetime')";
         
         if (mysqli_query($conn, $query)) {
             $supplier_id = mysqli_insert_id($conn);

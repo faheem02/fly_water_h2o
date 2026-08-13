@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `role` VARCHAR(20) NOT NULL DEFAULT 'admin',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `username` (`username`)
+    KEY `supplier_id` (`supplier_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `customers` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `customer_code` VARCHAR(10) NOT NULL,
     `customer_name` VARCHAR(200) NOT NULL,
     `mobile` VARCHAR(50) DEFAULT NULL,
     `address` TEXT DEFAULT NULL,
@@ -34,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `customers` (
     `status` VARCHAR(20) NOT NULL DEFAULT 'Active',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_customer_code` (`customer_code`),
     KEY `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -61,6 +64,7 @@ CREATE TABLE IF NOT EXISTS `customer_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `customer_payments` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `customer_id` INT(11) NOT NULL,
     `payment_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `payment_type` VARCHAR(50) DEFAULT 'Cash',
@@ -68,7 +72,8 @@ CREATE TABLE IF NOT EXISTS `customer_payments` (
     `payment_datetime` DATETIME NOT NULL,
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `customer_id` (`customer_id`)
+    KEY `customer_id` (`customer_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -76,6 +81,7 @@ CREATE TABLE IF NOT EXISTS `customer_payments` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `water_deliveries` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `customer_id` INT(11) NOT NULL,
     `product_id` INT(11) DEFAULT NULL,
     `bottles_delivered` INT(11) NOT NULL DEFAULT 0,
@@ -89,6 +95,7 @@ CREATE TABLE IF NOT EXISTS `water_deliveries` (
     PRIMARY KEY (`id`),
     KEY `customer_id` (`customer_id`),
     KEY `product_id` (`product_id`),
+    KEY `voucher_no` (`voucher_no`),
     KEY `delivery_datetime` (`delivery_datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -116,7 +123,9 @@ CREATE TABLE IF NOT EXISTS `bottle_tracking` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `products` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `product_code` VARCHAR(10) NOT NULL,
     `product_name` VARCHAR(200) NOT NULL,
+    `purchase_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `sale_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `current_stock` INT(11) NOT NULL DEFAULT 0,
     `min_stock_level` INT(11) NOT NULL DEFAULT 10,
@@ -124,6 +133,7 @@ CREATE TABLE IF NOT EXISTS `products` (
     `status` VARCHAR(20) NOT NULL DEFAULT 'Active',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_product_code` (`product_code`),
     KEY `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -213,6 +223,7 @@ CREATE TABLE IF NOT EXISTS `cashbook` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `suppliers` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `supplier_code` VARCHAR(10) NOT NULL,
     `supplier_name` VARCHAR(200) NOT NULL,
     `contact_person` VARCHAR(200) DEFAULT NULL,
     `mobile` VARCHAR(50) NOT NULL,
@@ -225,6 +236,7 @@ CREATE TABLE IF NOT EXISTS `suppliers` (
     `status` VARCHAR(20) NOT NULL DEFAULT 'Active',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_supplier_code` (`supplier_code`),
     KEY `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -251,6 +263,7 @@ CREATE TABLE IF NOT EXISTS `supplier_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplier_payments` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `supplier_id` INT(11) NOT NULL,
     `purchase_id` INT(11) NOT NULL,
     `payment_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -261,7 +274,8 @@ CREATE TABLE IF NOT EXISTS `supplier_payments` (
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `supplier_id` (`supplier_id`),
-    KEY `purchase_id` (`purchase_id`)
+    KEY `purchase_id` (`purchase_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -287,6 +301,7 @@ CREATE TABLE IF NOT EXISTS `raw_materials` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `raw_material_purchases` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `purchase_date` DATETIME NOT NULL,
     `invoice_no` VARCHAR(100) DEFAULT NULL,
     `supplier_id` INT(11) NOT NULL,

@@ -47,7 +47,7 @@ if (mysqli_num_rows($suppliers_table_exists) == 0) {
     $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
     $where = " WHERE 1=1";
     if ($search) {
-        $where .= " AND (s.supplier_name LIKE '%$search%' OR s.id LIKE '%$search%' OR s.mobile LIKE '%$search%' OR s.contact_person LIKE '%$search%')";
+        $where .= " AND (s.supplier_name LIKE '%$search%' OR s.id LIKE '%$search%' OR s.supplier_code LIKE '%$search%' OR s.mobile LIKE '%$search%' OR s.contact_person LIKE '%$search%')";
     }
 
     // Get all suppliers
@@ -106,6 +106,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
 .suppliers-table td:first-child,
 .suppliers-table th:first-child {
     text-align: center;
+    white-space: nowrap;
 }
 .balance-positive {
     color: #28a745;
@@ -229,7 +230,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
                 <table class="table table-hover suppliers-table mb-0" id="suppliersTable">
                     <thead>
                         <tr>
-                            <th style="width:50px">ID</th>
+                            <th style="width:80px">ID</th>
                             <th style="min-width:160px">Supplier Name</th>
                             <th style="min-width:120px">Contact Person</th>
                             <th style="min-width:110px">Mobile</th>
@@ -245,7 +246,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
                             while($row = mysqli_fetch_assoc($result)): 
                         ?>
                             <tr>
-                                <td class="text-center fw-semibold"><?php echo $row['id']; ?></td>
+                                <td class="text-center fw-semibold"><?php echo $row['supplier_code']; ?></td>
                                 <td><strong><?php echo htmlspecialchars($row['supplier_name']); ?></strong></td>
                                 <td><?php echo htmlspecialchars($row['contact_person'] ?? '-'); ?></td>
                                 <td><?php echo htmlspecialchars($row['mobile']); ?></td>
@@ -450,6 +451,7 @@ function confirmDelete(id, name) {
             <thead>
                 <tr>
                     <th style="width:40px;">#</th>
+                    <th style="width:60px;">ID</th>
                     <th>Supplier Name</th>
                     <th>Contact Person</th>
                     <th>Mobile</th>
@@ -472,6 +474,7 @@ function confirmDelete(id, name) {
                 ?>
                     <tr>
                         <td><?php echo $sno++; ?></td>
+                        <td><?php echo $row['supplier_code']; ?></td>
                         <td><strong><?php echo htmlspecialchars($row['supplier_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($row['contact_person'] ?? '-'); ?></td>
                         <td><?php echo htmlspecialchars($row['mobile']); ?></td>
@@ -480,7 +483,7 @@ function confirmDelete(id, name) {
                         <td class="text-end"><?php echo number_format($row['total_purchase_amount'], 2); ?></td>
                     </tr>
                 <?php endwhile; else: ?>
-                    <tr><td colspan="7" class="text-center" style="padding:40px;color:#999;">No suppliers found.</td></tr>
+                    <tr><td colspan="8" class="text-center" style="padding:40px;color:#999;">No suppliers found.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>

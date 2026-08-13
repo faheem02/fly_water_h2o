@@ -186,7 +186,7 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             .fixed-sidebar {
                 transform: translateX(0) !important;
                 position: fixed;
-                top: 65px;
+                /* top: 65px; */
                 left: 0;
                 width: 260px;
                 height: calc(100% - 65px);
@@ -314,6 +314,11 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                         <i class="fas fa-book"></i> Customer Ledger
                     </a>
                 </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/payments.php">
+                        <i class="fas fa-money-bill-wave"></i> Payments
+                    </a>
+                </li>
             </ul>
         </li>
         <?php endif; ?>
@@ -351,42 +356,28 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
 
         <?php if(!is_salesman()): ?>
 
-        <!-- PAYMENTS -->
-        <li>
-            <a href="<?php echo $base_url; ?>pages/payments.php">
-                <i class="fas fa-money-bill-wave"></i>
-                <span>Payments</span>
-            </a>
-        </li>
-
-
         <!-- PRODUCT STOCK -->
-        <li>
-            <a href="<?php echo $base_url; ?>pages/stock.php">
+        <li class="has-submenu">
+            <a href="javascript:void(0)" class="submenu-trigger">
                 <i class="fas fa-boxes"></i>
                 <span>Product Stock</span>
+                <i class="fas fa-chevron-down toggle-submenu"></i>
             </a>
+            <ul class="submenu">
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/stock.php">
+                        <i class="fas fa-list"></i> Stock Levels
+                    </a>
+                </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/stock_ledger.php">
+                        <i class="fas fa-history"></i> Stock Ledger
+                    </a>
+                </li>
+            </ul>
         </li>
 
-        <!-- FINANCIAL SECTION -->
-        <li class="sidebar-divider"></li>
-        <li class="sidebar-title">Financial Management</li>
 
-        <!-- EXPENSES -->
-        <li>
-            <a href="<?php echo $base_url; ?>pages/expenses.php">
-                <i class="fas fa-money-bill-wave"></i>
-                <span>Expenses</span>
-            </a>
-        </li>
-
-        <!-- CASHBOOK -->
-        <li>
-            <a href="<?php echo $base_url; ?>pages/cashbook.php">
-                <i class="fas fa-book"></i>
-                <span>Cashbook</span>
-            </a>
-        </li>
 
         <!-- RAW MATERIAL & SUPPLIER SECTION -->
         <li class="sidebar-divider"></li>
@@ -406,8 +397,13 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                     </a>
                 </li>
                 <li>
-                    <a href="<?php echo $base_url; ?>pages/add_supplier.php">
-                        <i class="fas fa-plus"></i> Add Supplier
+                    <a href="<?php echo $base_url; ?>pages/supplier_ledger.php">
+                        <i class="fas fa-book"></i> Supplier Ledger
+                    </a>
+                </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/supplier_payment.php">
+                        <i class="fas fa-money-bill-wave"></i> Supplier Payment
                     </a>
                 </li>
             </ul>
@@ -452,6 +448,47 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             </a>
         </li>
 
+        <!-- FINANCIAL SECTION -->
+        <li class="sidebar-divider"></li>
+        <li class="sidebar-title">Financial Management</li>
+
+        <!-- EXPENSES -->
+        <li class="has-submenu">
+            <a href="javascript:void(0)" class="submenu-trigger">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>Expenses</span>
+                <i class="fas fa-chevron-down toggle-submenu"></i>
+            </a>
+            <ul class="submenu">
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/expenses.php">
+                        <i class="fas fa-list-alt"></i> Expense Entry
+                    </a>
+                </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/expense_categories.php">
+                        <i class="fas fa-tags"></i> Expense Categories
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+        <!-- CASHBOOK -->
+        <li>
+            <a href="<?php echo $base_url; ?>pages/cashbook.php">
+                <i class="fas fa-book"></i>
+                <span>Cashbook</span>
+            </a>
+        </li>
+
+        <!-- PROFIT & LOSS -->
+        <li>
+            <a href="<?php echo $base_url; ?>pages/profit_loss.php">
+                <i class="fas fa-chart-pie"></i>
+                <span>Profit & Loss</span>
+            </a>
+        </li>        
+
         <!-- GENERAL REPORTS SECTION -->
         <li class="sidebar-divider"></li>
         <li class="sidebar-title">Reports</li>
@@ -461,6 +498,14 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             <a href="<?php echo $base_url; ?>pages/reports.php">
                 <i class="fas fa-chart-line"></i>
                 <span>All Reports</span>
+            </a>
+        </li>
+
+        <!-- VOUCHER SEARCH -->
+        <li>
+            <a href="<?php echo $base_url; ?>pages/voucher_search.php">
+                <i class="fas fa-search"></i>
+                <span>Voucher Search</span>
             </a>
         </li>
 

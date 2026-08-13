@@ -60,6 +60,24 @@ function salesman_owns_customer($conn, $customer_salesman) {
     return false;
 }
 
+function generate_5digit_code($conn, $table, $column) {
+    $table = preg_replace('/[^a-z0-9_]/i', '', $table);
+    $column = preg_replace('/[^a-z0-9_]/i', '', $column);
+    $res = mysqli_query($conn, "SELECT COALESCE(MAX(CAST($column AS UNSIGNED)), 10000) + 1 AS next FROM $table");
+    $row = mysqli_fetch_assoc($res);
+    return str_pad((string)$row['next'], 5, '0', STR_PAD_LEFT);
+}
+
+function generate_voucher_no($conn, $table, $column, $prefix) {
+    $table = preg_replace('/[^a-z0-9_]/i', '', $table);
+    $column = preg_replace('/[^a-z0-9_]/i', '', $column);
+    $prefix = preg_replace('/[^a-zA-Z0-9-]/', '', $prefix);
+    $len = strlen($prefix) + 1;
+    $res = mysqli_query($conn, "SELECT COALESCE(MAX(CAST(SUBSTRING($column, $len) AS UNSIGNED)), 0) + 1 AS next FROM $table WHERE $column LIKE '" . mysqli_real_escape_string($conn, $prefix) . "%'");
+    $row = mysqli_fetch_assoc($res);
+    return $prefix . str_pad((string)$row['next'], 5, '0', STR_PAD_LEFT);
+}
+
 $allowed_salesman_pages = ['deliveries.php', 'delivery_view.php'];
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true && is_salesman()) {
     $script_name = basename($_SERVER['PHP_SELF']);

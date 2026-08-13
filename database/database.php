@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS `customer_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `customer_payments` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `customer_id` INT(11) NOT NULL,
     `payment_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `payment_type` VARCHAR(50) DEFAULT 'Cash',
@@ -75,7 +76,8 @@ CREATE TABLE IF NOT EXISTS `customer_payments` (
     `payment_datetime` DATETIME NOT NULL,
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `customer_id` (`customer_id`)
+    KEY `customer_id` (`customer_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -83,6 +85,7 @@ CREATE TABLE IF NOT EXISTS `customer_payments` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `water_deliveries` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `customer_id` INT(11) NOT NULL,
     `product_id` INT(11) DEFAULT NULL,
     `bottles_delivered` INT(11) NOT NULL DEFAULT 0,
@@ -96,6 +99,7 @@ CREATE TABLE IF NOT EXISTS `water_deliveries` (
     PRIMARY KEY (`id`),
     KEY `customer_id` (`customer_id`),
     KEY `product_id` (`product_id`),
+    KEY `voucher_no` (`voucher_no`),
     KEY `delivery_datetime` (`delivery_datetime`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -124,6 +128,7 @@ CREATE TABLE IF NOT EXISTS `bottle_tracking` (
 CREATE TABLE IF NOT EXISTS `products` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `product_name` VARCHAR(200) NOT NULL,
+    `purchase_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `sale_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     `current_stock` INT(11) NOT NULL DEFAULT 0,
     `min_stock_level` INT(11) NOT NULL DEFAULT 10,
@@ -258,6 +263,7 @@ CREATE TABLE IF NOT EXISTS `supplier_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplier_payments` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `supplier_id` INT(11) NOT NULL,
     `purchase_id` INT(11) NOT NULL,
     `payment_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -268,7 +274,8 @@ CREATE TABLE IF NOT EXISTS `supplier_payments` (
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `supplier_id` (`supplier_id`),
-    KEY `purchase_id` (`purchase_id`)
+    KEY `purchase_id` (`purchase_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -294,6 +301,7 @@ CREATE TABLE IF NOT EXISTS `raw_materials` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `raw_material_purchases` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `purchase_date` DATETIME NOT NULL,
     `invoice_no` VARCHAR(100) DEFAULT NULL,
     `supplier_id` INT(11) NOT NULL,
@@ -307,7 +315,8 @@ CREATE TABLE IF NOT EXISTS `raw_material_purchases` (
     `notes` TEXT DEFAULT NULL,
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `supplier_id` (`supplier_id`)
+    KEY `supplier_id` (`supplier_id`),
+    KEY `voucher_no` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -402,6 +411,61 @@ if (mysqli_multi_query($conn, $sql)) {
     if ($check_broken && mysqli_num_rows($check_broken) == 0) {
         mysqli_query($conn, "ALTER TABLE bottle_tracking ADD COLUMN bottles_broken INT(11) NOT NULL DEFAULT 0 AFTER bottles_returned");
         echo "<li>✓ Bottle tracking table updated (added bottles_broken)</li>";
+    }
+
+    // Migrate customers table to add customer_code column (5-digit sequential ID)
+    $check_cust_code = mysqli_query($conn, "SHOW COLUMNS FROM customers LIKE 'customer_code'");
+    if ($check_cust_code && mysqli_num_rows($check_cust_code) == 0) {
+        mysqli_query($conn, "ALTER TABLE customers ADD COLUMN customer_code VARCHAR(10) DEFAULT NULL AFTER id, ADD UNIQUE KEY uq_customer_code (customer_code)");
+        $cust_rows = mysqli_query($conn, "SELECT id FROM customers ORDER BY id");
+        $cust_code = 10000;
+        if ($cust_rows) {
+            while ($r = mysqli_fetch_assoc($cust_rows)) {
+                $cust_code++;
+                mysqli_query($conn, "UPDATE customers SET customer_code = $cust_code WHERE id = {$r['id']}");
+            }
+        }
+        mysqli_query($conn, "ALTER TABLE customers MODIFY customer_code VARCHAR(10) NOT NULL");
+        echo "<li>✓ Customers table updated (added customer_code)</li>";
+    }
+
+    // Migrate suppliers table to add supplier_code column (5-digit sequential ID)
+    $check_supp_code = mysqli_query($conn, "SHOW COLUMNS FROM suppliers LIKE 'supplier_code'");
+    if ($check_supp_code && mysqli_num_rows($check_supp_code) == 0) {
+        mysqli_query($conn, "ALTER TABLE suppliers ADD COLUMN supplier_code VARCHAR(10) DEFAULT NULL AFTER id, ADD UNIQUE KEY uq_supplier_code (supplier_code)");
+        $supp_rows = mysqli_query($conn, "SELECT id FROM suppliers ORDER BY id");
+        $supp_code = 10000;
+        if ($supp_rows) {
+            while ($r = mysqli_fetch_assoc($supp_rows)) {
+                $supp_code++;
+                mysqli_query($conn, "UPDATE suppliers SET supplier_code = $supp_code WHERE id = {$r['id']}");
+            }
+        }
+        mysqli_query($conn, "ALTER TABLE suppliers MODIFY supplier_code VARCHAR(10) NOT NULL");
+        echo "<li>✓ Suppliers table updated (added supplier_code)</li>";
+    }
+
+    // Migrate products table to add product_code column (5-digit sequential ID)
+    $check_prod_code = mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'product_code'");
+    if ($check_prod_code && mysqli_num_rows($check_prod_code) == 0) {
+        mysqli_query($conn, "ALTER TABLE products ADD COLUMN product_code VARCHAR(10) DEFAULT NULL AFTER id, ADD UNIQUE KEY uq_product_code (product_code)");
+        $prod_rows = mysqli_query($conn, "SELECT id FROM products ORDER BY id");
+        $prod_code = 10000;
+        if ($prod_rows) {
+            while ($r = mysqli_fetch_assoc($prod_rows)) {
+                $prod_code++;
+                mysqli_query($conn, "UPDATE products SET product_code = $prod_code WHERE id = {$r['id']}");
+            }
+        }
+        mysqli_query($conn, "ALTER TABLE products MODIFY product_code VARCHAR(10) NOT NULL");
+        echo "<li>✓ Products table updated (added product_code)</li>";
+    }
+
+    // Migrate products table to add purchase_price column
+    $check_purchase_price = mysqli_query($conn, "SHOW COLUMNS FROM products LIKE 'purchase_price'");
+    if ($check_purchase_price && mysqli_num_rows($check_purchase_price) == 0) {
+        mysqli_query($conn, "ALTER TABLE products ADD COLUMN purchase_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER product_name");
+        echo "<li>✓ Products table updated (added purchase_price)</li>";
     }
 
     // Migrate users table to add role column
