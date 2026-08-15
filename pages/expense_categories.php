@@ -13,7 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_category'])) {
     if(trim($category_name) == '') {
         $error = "Category name is required.";
     } else {
-        mysqli_query($conn, "INSERT INTO expense_categories (category_name, description, created_datetime) VALUES ('$category_name', '$description', '$datetime')");
+        $category_code = generate_5digit_code($conn, 'expense_categories', 'category_code');
+        mysqli_query($conn, "INSERT INTO expense_categories (category_code, category_name, description, created_datetime) VALUES ('$category_code', '$category_name', '$description', '$datetime')");
         $success = "Category added successfully!";
     }
 }
@@ -112,7 +113,7 @@ $categories = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM expenses e 
                 <table class="table cat-table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:60px">#</th>
+                            <th style="width:110px">Category ID</th>
                             <th>Category Name</th>
                             <th>Description</th>
                             <th style="width:130px" class="text-center">Expenses</th>
@@ -121,10 +122,9 @@ $categories = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM expenses e 
                     </thead>
                     <tbody>
                         <?php if($categories && mysqli_num_rows($categories) > 0):
-                            $sno = 1;
                             while($cat = mysqli_fetch_assoc($categories)): ?>
                             <tr>
-                                <td class="text-muted"><?php echo $sno++; ?></td>
+                                <td class="text-muted fw-semibold"><?php echo htmlspecialchars($cat['category_code']); ?></td>
                                 <td><strong><?php echo htmlspecialchars($cat['category_name']); ?></strong></td>
                                 <td><?php echo $cat['description'] ? htmlspecialchars($cat['description']) : '—'; ?></td>
                                 <td class="text-center">

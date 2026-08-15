@@ -108,7 +108,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
             $supplier_result = mysqli_query($conn, $supplier_query);
             $supplier_row = mysqli_fetch_assoc($supplier_result);
             $old_balance = $supplier_row['current_balance'];
-            $new_balance = $old_balance + $credit_amount;
+            $new_balance = $old_balance + $total_amount;
             
             $update_supplier = "UPDATE suppliers SET current_balance = $new_balance WHERE id = $supplier_id";
             if(!mysqli_query($conn, $update_supplier)){
@@ -120,7 +120,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
             $ledger_query = "INSERT INTO supplier_ledger 
                             (supplier_id, transaction_date, description, credit_amount, running_balance, reference_id, reference_type) 
                             VALUES 
-                            ($supplier_id, NOW(), '$ledger_desc', $credit_amount, $new_balance, $purchase_id, 'purchase')";
+                            ($supplier_id, NOW(), '$ledger_desc', $total_amount, $new_balance, $purchase_id, 'purchase')";
             
             if(!mysqli_query($conn, $ledger_query)){
                 throw new Exception("Error updating supplier ledger: " . mysqli_error($conn));

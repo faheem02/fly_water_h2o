@@ -137,6 +137,7 @@ $summary = mysqli_fetch_assoc($summary_result);
             </h2>
             <p class="text-muted mb-0">
                 Complete transaction history for: <strong><?php echo htmlspecialchars($material['material_name']); ?></strong>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-1"><?php echo htmlspecialchars($material['material_code']); ?></span>
                 <br><small>Unit: <?php echo htmlspecialchars($material['unit']); ?> | Current Stock: <?php echo number_format($material['current_stock'], 2); ?></small>
             </p>
         </div>
@@ -199,7 +200,11 @@ $summary = mysqli_fetch_assoc($summary_result);
     <div class="card shadow-sm border-0 rounded-4 mb-4">
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <small class="text-muted">Material ID</small>
+                    <h6 class="mb-0"><?php echo htmlspecialchars($material['material_code']); ?></h6>
+                </div>
+                <div class="col-md-2">
                     <small class="text-muted">Material Name</small>
                     <h6 class="mb-0"><?php echo htmlspecialchars($material['material_name']); ?></h6>
                 </div>
@@ -215,7 +220,7 @@ $summary = mysqli_fetch_assoc($summary_result);
                     <small class="text-muted">Sale Price</small>
                     <h6 class="mb-0 text-success">Rs <?php echo number_format($material['sale_price'], 2); ?></h6>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <small class="text-muted">Opening Stock</small>
                     <h6 class="mb-0"><?php echo number_format($material['opening_stock'], 2); ?> <?php echo $material['unit']; ?></h6>
                 </div>

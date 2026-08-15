@@ -1,5 +1,6 @@
 <?php
 require_once '../includes/db.php';
+require_once '../includes/supplier_ledger.php';
 if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
 $message = '';
@@ -73,28 +74,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                 mysqli_query($conn, $update_purchase);
             }
             
-            // Update supplier balance
-            $supplier_balance_query = "SELECT current_balance FROM suppliers WHERE id = $supplier_id";
-            $balance_result = mysqli_query($conn, $supplier_balance_query);
-            $balance_row = mysqli_fetch_assoc($balance_result);
-            $old_balance = $balance_row['current_balance'];
-            $new_balance = $old_balance - $payment_amount;
-            
-            $update_supplier = "UPDATE suppliers SET current_balance = $new_balance WHERE id = $supplier_id";
-            if(!mysqli_query($conn, $update_supplier)){
-                throw new Exception("Error updating supplier balance: " . mysqli_error($conn));
-            }
-            
-            // Add to supplier ledger (Debit for payment)
-            $ledger_desc = $purchase_id ? "Payment against Purchase #$purchase_id" : "Supplier Payment";
-            $ledger_query = "INSERT INTO supplier_ledger 
-                            (supplier_id, transaction_date, description, debit_amount, running_balance, reference_id, reference_type) 
-                            VALUES 
-                            ($supplier_id, NOW(), '$ledger_desc', $payment_amount, $new_balance, " . ($purchase_id ? $purchase_id : "NULL") . ", 'payment')";
-            
-            if(!mysqli_query($conn, $ledger_query)){
-                throw new Exception("Error updating supplier ledger: " . mysqli_error($conn));
-            }
+            // Rebuild supplier ledger + balance (handles advances correctly)
+            rebuildSupplierLedger($supplier_id);
             
             // Add to cashbook (Outflow)
             $sup_row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT supplier_name FROM suppliers WHERE id = $supplier_id"));
@@ -246,7 +227,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                     <?php if($purchase_id == 0 && isset($credit_result) && mysqli_num_rows($credit_result) > 0): ?>
                     <div class="col-md-12">
                         <label class="form-label fw-semibold">Select Purchase (Optional)</label>
-                        <select name="purchase_id" class="form-select">
+                        <select name="purchase_id" id="purchaseSelectId" class="form-select">
                             <option value="">No specific purchase (General Payment)</option>
                             <?php while($credit = mysqli_fetch_assoc($credit_result)): ?>
                                 <option value="<?php echo $credit['id']; ?>">
@@ -264,8 +245,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                         <label class="form-label fw-semibold required-field">Payment Amount</label>
                         <div class="input-group">
                             <span class="input-group-text">Rs</span>
-                            <input type="number" name="payment_amount" class="form-control" step="0.01" placeholder="0.00" required>
+                            <input type="number" name="payment_amount" id="payment_amount_input" class="form-control" step="0.01" placeholder="0.00" required>
                         </div>
+                        <div id="paymentPreview" class="mt-2 small"></div>
                     </div>
                     
                     <div class="col-md-6">
@@ -357,5 +339,53 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+const supplierBalance = <?php echo json_encode(floatval($supplier['current_balance'])); ?>;
+const purchasesData = <?php
+$preview_purchases = mysqli_query($conn, "SELECT id, credit_amount, voucher_no FROM raw_material_purchases WHERE supplier_id=$supplier_id");
+$pd = [];
+while($pp = mysqli_fetch_assoc($preview_purchases)) {
+    $pd[] = ['id' => intval($pp['id']), 'credit' => floatval($pp['credit_amount']), 'voucher' => $pp['voucher_no']];
+}
+echo json_encode($pd);
+?>;
+const previewAmountInput = document.getElementById('payment_amount_input');
+const previewDiv = document.getElementById('paymentPreview');
+const purchaseSelectEl = document.getElementById('purchaseSelectId');
+const currentPurchaseId = <?php echo $purchase_id; ?>;
+
+function fmtAmount(n) { return parseFloat(n || 0).toFixed(2); }
+
+function updatePaymentPreview() {
+    const amount = parseFloat(previewAmountInput.value) || 0;
+    const selPurchaseId = purchaseSelectEl ? (parseInt(purchaseSelectEl.value, 10) || 0) : currentPurchaseId;
+    const purchase = purchasesData.find(function(p) { return p.id === selPurchaseId; }) || null;
+
+    let html = '';
+    let base = supplierBalance;
+    if(purchase) {
+        base = purchase.credit;
+        html += '<div class="d-flex justify-content-between"><span>Supplier balance:</span><strong>Rs ' + fmtAmount(supplierBalance) + '</strong></div>';
+        html += '<div class="d-flex justify-content-between"><span>Selected purchase credit:</span><strong>Rs ' + fmtAmount(purchase.credit) + '</strong></div>';
+    } else {
+        html += '<div class="d-flex justify-content-between"><span>Supplier balance:</span><strong>Rs ' + fmtAmount(supplierBalance) + '</strong></div>';
+    }
+
+    if(amount > 0) {
+        const remaining = base - amount;
+        if(remaining >= 0) {
+            html += '<div class="d-flex justify-content-between text-success"><span>Remaining balance after payment:</span><strong>Rs ' + fmtAmount(remaining) + '</strong></div>';
+        } else {
+            html += '<div class="d-flex justify-content-between text-info"><span>Advance to be created:</span><strong>Rs ' + fmtAmount(Math.abs(remaining)) + '</strong></div>';
+        }
+    }
+    previewDiv.innerHTML = html;
+}
+
+previewAmountInput.addEventListener('keyup', updatePaymentPreview);
+previewAmountInput.addEventListener('change', updatePaymentPreview);
+if(purchaseSelectEl) purchaseSelectEl.addEventListener('change', updatePaymentPreview);
+</script>
 
 <?php include '../includes/footer.php'; ?>

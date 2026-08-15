@@ -286,7 +286,7 @@ $stats = mysqli_fetch_assoc($stats_query);
                                     <td><?php echo htmlspecialchars($row['salesman'] ?? '-'); ?></td>
                                     <td>Rs <?php echo number_format($row['security_deposit'], 2); ?></td>
                                     <td>Rs <?php echo number_format($row['opening_balance'], 2); ?></td>
-                                    <td class="text-danger fw-bold">Rs <?php echo number_format($row['outstanding_balance'], 2); ?></td>
+                                    <td class="<?php echo $row['outstanding_balance'] < 0 ? 'text-success fw-bold' : 'text-danger fw-bold'; ?>"><?php echo $row['outstanding_balance'] < 0 ? 'Advance: Rs ' . number_format(abs($row['outstanding_balance']), 2) : 'Rs ' . number_format($row['outstanding_balance'], 2); ?></td>
                                     <td><?php echo number_format($row['empty_bottles_balance']); ?></td>
                                     <td class="date-cell"><?php echo date('d-m-Y H:i', strtotime($row['created_datetime'])); ?></td>
                                     <td>
@@ -603,7 +603,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('view_address').textContent = btn.getAttribute('data-address') || '-';
             document.getElementById('view_salesman').textContent = btn.getAttribute('data-salesman') || '-';
             document.getElementById('view_opening').textContent = 'Rs ' + parseFloat(btn.getAttribute('data-opening') || 0).toFixed(2);
-            document.getElementById('view_outstanding').textContent = 'Rs ' + parseFloat(btn.getAttribute('data-outstanding') || 0).toFixed(2);
+            var out = parseFloat(btn.getAttribute('data-outstanding') || 0);
+            document.getElementById('view_outstanding').textContent = out < 0 ? 'Advance: Rs ' + Math.abs(out).toFixed(2) : 'Rs ' + out.toFixed(2);
             document.getElementById('view_empties').textContent = parseInt(btn.getAttribute('data-empties') || 0);
             document.getElementById('view_deposit').textContent = 'Rs ' + parseFloat(btn.getAttribute('data-deposit') || 0).toFixed(2);
             var created = btn.getAttribute('data-created');
@@ -704,7 +705,7 @@ if (typeof jQuery !== 'undefined') {
                         <td><strong><?php echo htmlspecialchars($row['customer_name']); ?></strong></td>
                         <td><?php echo htmlspecialchars($row['mobile']); ?></td>
                         <td><?php echo htmlspecialchars($row['salesman'] ?? '-'); ?></td>
-                        <td class="text-end"><?php echo number_format($row['outstanding_balance'], 2); ?></td>
+                        <td class="text-end"><?php echo $row['outstanding_balance'] < 0 ? 'Advance: ' . number_format(abs($row['outstanding_balance']), 2) : number_format($row['outstanding_balance'], 2); ?></td>
                         <td class="text-end"><?php echo $row['empty_bottles_balance']; ?></td>
                         <td><?php echo $row['status']; ?></td>
                     </tr>

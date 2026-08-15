@@ -176,10 +176,12 @@ CREATE TABLE IF NOT EXISTS `stock_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `expense_categories` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `category_code` VARCHAR(10) DEFAULT NULL,
     `category_name` VARCHAR(200) NOT NULL,
     `description` TEXT DEFAULT NULL,
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_category_code` (`category_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -187,6 +189,7 @@ CREATE TABLE IF NOT EXISTS `expense_categories` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `expenses` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `expense_date` DATE NOT NULL,
     `expense_category` INT(11) NOT NULL,
     `description` TEXT DEFAULT NULL,
@@ -197,7 +200,8 @@ CREATE TABLE IF NOT EXISTS `expenses` (
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `expense_category` (`expense_category`),
-    KEY `expense_date` (`expense_date`)
+    KEY `expense_date` (`expense_date`),
+    KEY `idx_expenses_voucher` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -283,6 +287,7 @@ CREATE TABLE IF NOT EXISTS `supplier_payments` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `raw_materials` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `material_code` VARCHAR(10) DEFAULT NULL,
     `material_name` VARCHAR(200) NOT NULL,
     `unit` VARCHAR(50) NOT NULL DEFAULT 'Pieces',
     `purchase_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -293,6 +298,7 @@ CREATE TABLE IF NOT EXISTS `raw_materials` (
     `status` VARCHAR(20) NOT NULL DEFAULT 'Active',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_material_code` (`material_code`),
     KEY `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

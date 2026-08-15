@@ -8,7 +8,7 @@ $from_date = isset($_GET['from_date']) ? trim($_GET['from_date']) : '';
 $to_date = isset($_GET['to_date']) ? trim($_GET['to_date']) : '';
 
 // Products dropdown
-$products = mysqli_query($conn, "SELECT id, product_name FROM products ORDER BY product_name");
+$products = mysqli_query($conn, "SELECT id, product_name, product_code FROM products ORDER BY product_name");
 
 // Build where clause
 $where = "WHERE 1=1";
@@ -17,7 +17,7 @@ if ($from_date) $where .= " AND DATE(sl.transaction_date) >= '$from_date'";
 if ($to_date) $where .= " AND DATE(sl.transaction_date) <= '$to_date'";
 
 // Fetch rows ascending so running balances build up correctly
-$ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledger sl JOIN products p ON sl.product_id = p.id $where ORDER BY sl.transaction_date ASC, sl.id ASC");
+$ledger = mysqli_query($conn, "SELECT sl.*, p.product_name, p.product_code FROM stock_ledger sl JOIN products p ON sl.product_id = p.id $where ORDER BY sl.transaction_date ASC, sl.id ASC");
 
 $rows = [];
 $product_names = [];
@@ -202,7 +202,7 @@ function ref_type_label($type, $in) {
                         <?php if ($products && mysqli_num_rows($products) > 0):
                             while ($pr = mysqli_fetch_assoc($products)): ?>
                             <option value="<?php echo $pr['id']; ?>" <?php echo $product_filter == $pr['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($pr['product_name']); ?>
+                                <?php echo htmlspecialchars($pr['product_name']); ?> (<?php echo htmlspecialchars($pr['product_code']); ?>)
                             </option>
                         <?php endwhile; endif; ?>
                     </select>
@@ -255,7 +255,7 @@ function ref_type_label($type, $in) {
                                 <tr>
                                     <td class="text-muted fw-semibold">#<?php echo $sl['id']; ?></td>
                                     <td class="text-nowrap" data-order="<?php echo htmlspecialchars($sl['transaction_date']); ?>"><?php echo date('d-m-Y h:i A', strtotime($sl['transaction_date'])); ?></td>
-                                    <td><strong><?php echo htmlspecialchars($sl['product_name']); ?></strong></td>
+                                    <td><strong><?php echo htmlspecialchars($sl['product_name']); ?></strong> <span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($sl['product_code']); ?></span></td>
                                     <td>
                                         <span class="badge rounded-pill bg-light text-dark border">
                                             <i class="fas fa-tag me-1"></i><?php echo ref_type_label($sl['reference_type'], $sl['quantity_in']); ?>
@@ -350,7 +350,7 @@ function ref_type_label($type, $in) {
                         <td><?php echo $sno++; ?></td>
                         <td><?php echo $sl['id']; ?></td>
                         <td><?php echo date('d-m-Y h:i A', strtotime($sl['transaction_date'])); ?></td>
-                        <td><?php echo htmlspecialchars($sl['product_name']); ?></td>
+                        <td><?php echo htmlspecialchars($sl['product_name']); ?> (<?php echo htmlspecialchars($sl['product_code']); ?>)</td>
                         <td><?php echo ref_type_label($sl['reference_type'], $sl['quantity_in']); ?></td>
                         <td class="text-end"><?php echo $sl['quantity_in'] > 0 ? number_format($sl['quantity_in']) : '-'; ?></td>
                         <td class="text-end"><?php echo $sl['quantity_out'] > 0 ? number_format($sl['quantity_out']) : '-'; ?></td>

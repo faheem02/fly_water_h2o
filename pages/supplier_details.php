@@ -20,7 +20,7 @@ if(!$supplier){
 }
 
 // Fetch supplier ledger
-$ledger_query = "SELECT * FROM supplier_ledger WHERE supplier_id = $supplier_id ORDER BY transaction_date ASC";
+$ledger_query = "SELECT wl.*, rmp.voucher_no AS purchase_voucher, sp.voucher_no AS payment_voucher FROM supplier_ledger wl LEFT JOIN raw_material_purchases rmp ON wl.reference_type='purchase' AND wl.reference_id = rmp.id LEFT JOIN supplier_payments sp ON wl.reference_type='payment' AND wl.reference_id = sp.id WHERE wl.supplier_id = $supplier_id ORDER BY wl.transaction_date ASC, wl.id ASC";
 $ledger_result = mysqli_query($conn, $ledger_query);
 
 // Fetch purchases
@@ -192,6 +192,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                             <thead>
                                 <tr>
                                     <th>Date</th>
+                                    <th>Voucher No</th>
                                     <th>Description</th>
                                     <th>Debit (Payment)</th>
                                     <th>Credit (Purchase)</th>
@@ -211,6 +212,18 @@ $payment_result = mysqli_query($conn, $payment_query);
                                 ?>
                                     <tr>
                                         <td><?php echo date('d-m-Y H:i', strtotime($row['transaction_date'])); ?></td>
+                                        <td>
+                                            <?php 
+                                            $voucher_no = '';
+                                            if($row['reference_type'] == 'purchase') { $voucher_no = $row['purchase_voucher']; }
+                                            elseif($row['reference_type'] == 'payment') { $voucher_no = $row['payment_voucher']; }
+                                            ?>
+                                            <?php if($voucher_no): ?>
+                                                <span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($voucher_no); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><?php echo htmlspecialchars($row['description']); ?></td>
                                         <td class="text-danger"><?php echo $row['debit_amount'] > 0 ? 'Rs ' . number_format($row['debit_amount'], 2) : '-'; ?></td>
                                         <td class="text-success"><?php echo $row['credit_amount'] > 0 ? 'Rs ' . number_format($row['credit_amount'], 2) : '-'; ?></td>
@@ -224,7 +237,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                                 else:
                                 ?>
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">
+                                        <td colspan="6" class="text-center py-4 text-muted">
                                             <i class="fas fa-book fa-2x mb-2 d-block"></i>
                                             No ledger entries found.
                                         </td>
@@ -234,7 +247,7 @@ $payment_result = mysqli_query($conn, $payment_query);
                             <?php if(count($ledger_records) > 0): ?>
                             <tfoot class="table-light">
                                 <tr>
-                                    <th colspan="4" class="text-end">Current Balance:</th>
+                                    <th colspan="5" class="text-end">Current Balance:</th>
                                     <th class="<?php echo $running_balance >= 0 ? 'text-warning' : 'text-success'; ?>">
                                         Rs <?php echo number_format(abs($running_balance), 2); ?>
                                         (<?php echo $running_balance >= 0 ? 'Credit' : 'Advance'; ?>)

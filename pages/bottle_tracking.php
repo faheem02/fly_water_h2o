@@ -243,25 +243,32 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                 </div>
                 <div class="col-md-6">
                     <div class="row g-3">
-                        <div class="col-4">
+                        <div class="col-6 col-lg-3">
                             <div class="bottle-stats delivered">
                                 <i class="fas fa-truck"></i>
                                 <h4><?php echo number_format($total_delivered); ?></h4>
                                 <small>Total Delivered</small>
                             </div>
                         </div>
-                        <div class="col-4">
+                        <div class="col-6 col-lg-3">
                             <div class="bottle-stats returned">
                                 <i class="fas fa-undo-alt"></i>
                                 <h4><?php echo number_format($total_returned); ?></h4>
                                 <small>Total Returned</small>
                             </div>
                         </div>
-                        <div class="col-4">
+                        <div class="col-6 col-lg-3">
                             <div class="bottle-stats broken">
                                 <i class="fas fa-wine-bottle"></i>
                                 <h4><?php echo number_format($total_broken); ?></h4>
                                 <small>Total Broken</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <div class="bottle-stats pending">
+                                <i class="fas fa-hourglass-half"></i>
+                                <h4><?php echo number_format($current_empty_balance); ?></h4>
+                                <small>Current Empty Bottles</small>
                             </div>
                         </div>
                     </div>

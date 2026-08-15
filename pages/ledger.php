@@ -37,7 +37,7 @@ if ($customer_id) {
             $date_condition = "AND DATE(wl.transaction_date) <= '$to_date'";
         }
         
-        $ledger_query = "SELECT wl.*, wd.bottles_delivered, wd.empty_bottles_returned, wd.product_id, wd.bottle_rate, p.product_name, p.track_empty_bottles FROM customer_ledger wl LEFT JOIN water_deliveries wd ON wl.reference_type='delivery' AND wl.reference_id = wd.id LEFT JOIN products p ON wd.product_id = p.id WHERE wl.customer_id=$customer_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
+        $ledger_query = "SELECT wl.*, wd.voucher_no AS delivery_voucher, cp.voucher_no AS payment_voucher, wd.bottles_delivered, wd.empty_bottles_returned, wd.product_id, wd.bottle_rate, p.product_name, p.track_empty_bottles FROM customer_ledger wl LEFT JOIN water_deliveries wd ON wl.reference_type='delivery' AND wl.reference_id = wd.id LEFT JOIN customer_payments cp ON wl.reference_type='payment' AND wl.reference_id = cp.id LEFT JOIN products p ON wd.product_id = p.id WHERE wl.customer_id=$customer_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
         $ledger = mysqli_query($conn, $ledger_query);
     }
 }
@@ -310,6 +310,7 @@ if($customer_id && $ledger) {
                         <thead>
                             <tr>
                                 <th style="width: 140px">Date</th>
+                                <th style="width: 110px">Voucher No</th>
                                 <th>Description</th>
                                 <th style="width: 80px" class="text-center">Delivered</th>
                                 <th style="width: 80px" class="text-center">Empty Returned</th>
@@ -330,6 +331,18 @@ if($customer_id && $ledger) {
                                         <td>
                                             <i class="far fa-calendar-alt me-1 text-muted"></i>
                                             <?php echo date('d-m-Y h:i A', strtotime($row['transaction_date'])); ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                            $voucher_no = '';
+                                            if($row['reference_type'] == 'delivery') { $voucher_no = $row['delivery_voucher']; }
+                                            elseif($row['reference_type'] == 'payment') { $voucher_no = $row['payment_voucher']; }
+                                            ?>
+                                            <?php if($voucher_no): ?>
+                                                <span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($voucher_no); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php 
@@ -396,7 +409,7 @@ if($customer_id && $ledger) {
                                 <?php endwhile; ?>
                                 <!-- Closing Balance Row -->
                                 <tr style="background: #f8f9fa; font-weight: 700;">
-                                    <td colspan="7" class="text-end"><strong>Closing Balance</strong></td>
+                                    <td colspan="8" class="text-end"><strong>Closing Balance</strong></td>
                                     <td class="text-end">
                                         <?php if($current_balance > 0): ?>
                                             <span class="balance-positive">Rs <?php echo number_format($current_balance, 2); ?></span>
@@ -409,7 +422,7 @@ if($customer_id && $ledger) {
                                 </tr>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="8" class="empty-state">
+                                    <td colspan="9" class="empty-state">
                                         <i class="fas fa-book-open"></i>
                                         <p class="mb-0">No transactions found for this customer.</p>
                                         <small class="text-muted">Add deliveries or payments to see ledger entries.</small>
@@ -484,6 +497,7 @@ if($customer_id && $ledger) {
                         <tr>
                             <th style="width:40px;">#</th>
                             <th style="width:100px;">Date</th>
+                            <th style="width:90px;">Voucher No</th>
                             <th>Description</th>
                             <th style="width:70px;" class="text-center">Delivered</th>
                             <th style="width:70px;" class="text-center">Empty Returned</th>
@@ -509,6 +523,7 @@ if($customer_id && $ledger) {
                             <tr>
                                 <td><?php echo $sno++; ?></td>
                                 <td><?php echo date('d-m-Y', strtotime($row['transaction_date'])); ?></td>
+                                <td><?php echo htmlspecialchars(($row['reference_type'] == 'delivery') ? $row['delivery_voucher'] : (($row['reference_type'] == 'payment') ? $row['payment_voucher'] : '-')); ?></td>
                                 <td><?php echo htmlspecialchars(($row['reference_type'] == 'delivery' && !empty($row['product_name'])) ? $row['product_name'] : $row['description']); ?></td>
                                 <td class="text-center"><?php echo ($row['reference_type'] == 'delivery' && $row['bottles_delivered'] !== null) ? $row['bottles_delivered'] : '-'; ?></td>
                                 <td class="text-center"><?php echo ($row['reference_type'] == 'delivery' && !empty($row['track_empty_bottles']) && $row['empty_bottles_returned'] !== null) ? $row['empty_bottles_returned'] : '-'; ?></td>
@@ -520,13 +535,13 @@ if($customer_id && $ledger) {
                         <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
+                                <td colspan="9" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="text-end"><strong>Total</strong></td>
+                            <td colspan="7" class="text-end"><strong>Total</strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_debit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_credit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($current_balance, 2); ?></strong></td>

@@ -35,35 +35,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_payment'])) {
     $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT outstanding_balance, customer_name FROM customers WHERE id=$customer_id"));
     
     if($cust) {
-        if($amount > $cust['outstanding_balance']) {
-            $error = "Payment amount (Rs " . number_format($amount, 2) . ") exceeds outstanding balance (Rs " . number_format($cust['outstanding_balance'], 2) . ")!";
-        } else {
-            $new_outstanding = $cust['outstanding_balance'] - $amount;
-            mysqli_query($conn, "UPDATE customers SET outstanding_balance = $new_outstanding WHERE id=$customer_id");
-            
-            // Insert payment record
-            $voucher_no = generate_voucher_no($conn, 'customer_payments', 'voucher_no', 'RCP-');
-            $payment_query = "INSERT INTO customer_payments (voucher_no, customer_id, payment_amount, payment_type, notes, payment_datetime) 
-                              VALUES ('$voucher_no', $customer_id, $amount, 'Cash', '$notes', '$datetime')";
-            mysqli_query($conn, $payment_query);
-            $payment_id = mysqli_insert_id($conn);
-            
-            // Ledger: Credit
-            $running = mysqli_fetch_assoc(mysqli_query($conn, "SELECT running_balance FROM customer_ledger WHERE customer_id=$customer_id ORDER BY id DESC LIMIT 1"))['running_balance'] ?? 0;
-            $new_balance = $running - $amount;
-            $desc = "Payment Received (Cash)";
-            mysqli_query($conn, "INSERT INTO customer_ledger (customer_id, transaction_date, description, debit_amount, credit_amount, running_balance, reference_id, reference_type) 
-                                 VALUES ($customer_id, '$datetime', '$desc', 0, $amount, $new_balance, $payment_id, 'payment')");
-            
-            // Cashbook: Income
-            $cash_desc = "Customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " - Payment received";
-            if($notes) $cash_desc .= " - " . $notes;
-            mysqli_query($conn, "INSERT INTO cashbook (transaction_date, transaction_type, reference_type, reference_id, description, amount, balance, created_datetime) 
-                                 VALUES ('$datetime', 'income', 'payment', $payment_id, '$cash_desc', $amount, 0, '$datetime')");
-            recalcCashbook();
-            
-            $success = "Payment of Rs " . number_format($amount, 2) . " received from " . htmlspecialchars($cust['customer_name']) . "! Voucher: <strong>$voucher_no</strong>";
-        }
+        $new_outstanding = $cust['outstanding_balance'] - $amount;
+        mysqli_query($conn, "UPDATE customers SET outstanding_balance = $new_outstanding WHERE id=$customer_id");
+
+        // Insert payment record
+        $voucher_no = generate_voucher_no($conn, 'customer_payments', 'voucher_no', 'RCP-');
+        $payment_query = "INSERT INTO customer_payments (voucher_no, customer_id, payment_amount, payment_type, notes, payment_datetime) 
+                          VALUES ('$voucher_no', $customer_id, $amount, 'Cash', '$notes', '$datetime')";
+        mysqli_query($conn, $payment_query);
+        $payment_id = mysqli_insert_id($conn);
+
+        // Ledger: Credit
+        $running = mysqli_fetch_assoc(mysqli_query($conn, "SELECT running_balance FROM customer_ledger WHERE customer_id=$customer_id ORDER BY id DESC LIMIT 1"))['running_balance'] ?? 0;
+        $new_balance = $running - $amount;
+        $desc = "Payment Received (Cash)";
+        mysqli_query($conn, "INSERT INTO customer_ledger (customer_id, transaction_date, description, debit_amount, credit_amount, running_balance, reference_id, reference_type) 
+                             VALUES ($customer_id, '$datetime', '$desc', 0, $amount, $new_balance, $payment_id, 'payment')");
+
+        // Cashbook: Income
+        $cash_desc = "Customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " - Payment received";
+        if($notes) $cash_desc .= " - " . $notes;
+        mysqli_query($conn, "INSERT INTO cashbook (transaction_date, transaction_type, reference_type, reference_id, description, amount, balance, created_datetime) 
+                             VALUES ('$datetime', 'income', 'payment', $payment_id, '$cash_desc', $amount, 0, '$datetime')");
+        recalcCashbook();
+
+        $success = "Payment of Rs " . number_format($amount, 2) . " received from " . htmlspecialchars($cust['customer_name']) . "! Voucher: <strong>$voucher_no</strong>";
     } else {
         $error = "Customer not found!";
     }
@@ -81,19 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_payment'])) {
         $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT outstanding_balance, customer_name FROM customers WHERE id=$customer_id"));
         $new_outstanding = $cust['outstanding_balance'] + $old_amount - $amount;
 
-        if($new_outstanding < 0) {
-            $error = "Payment amount (Rs " . number_format($amount, 2) . ") exceeds outstanding balance (Rs " . number_format($cust['outstanding_balance'] + $old_amount, 2) . ")!";
-        } else {
-            mysqli_query($conn, "UPDATE customer_payments SET payment_amount=$amount, notes='$notes' WHERE id=$payment_id");
-            mysqli_query($conn, "UPDATE customers SET outstanding_balance=$new_outstanding WHERE id=$customer_id");
-            mysqli_query($conn, "UPDATE customer_ledger SET credit_amount=$amount WHERE customer_id=$customer_id AND reference_id=$payment_id AND reference_type='payment'");
-            recalcLedger($customer_id);
-            $cash_desc = "Customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " - Payment received";
-            if($notes) $cash_desc .= " - " . $notes;
-            mysqli_query($conn, "UPDATE cashbook SET amount=$amount, description='$cash_desc' WHERE reference_id=$payment_id AND reference_type='payment'");
-            recalcCashbook();
-            $success = "Payment updated successfully for " . htmlspecialchars($cust['customer_name']) . "!";
-        }
+        mysqli_query($conn, "UPDATE customer_payments SET payment_amount=$amount, notes='$notes' WHERE id=$payment_id");
+        mysqli_query($conn, "UPDATE customers SET outstanding_balance=$new_outstanding WHERE id=$customer_id");
+        mysqli_query($conn, "UPDATE customer_ledger SET credit_amount=$amount WHERE customer_id=$customer_id AND reference_id=$payment_id AND reference_type='payment'");
+        recalcLedger($customer_id);
+        $cash_desc = "Customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " - Payment received";
+        if($notes) $cash_desc .= " - " . $notes;
+        mysqli_query($conn, "UPDATE cashbook SET amount=$amount, description='$cash_desc' WHERE reference_id=$payment_id AND reference_type='payment'");
+        recalcCashbook();
+        $success = "Payment updated successfully for " . htmlspecialchars($cust['customer_name']) . "!";
     } else {
         $error = "Payment record not found!";
     }
@@ -678,12 +670,18 @@ function escapeHtml(text) {
     });
 }
 
+function fmtOutstanding(n) {
+    n = parseFloat(n) || 0;
+    if(n < 0) return 'Advance: Rs ' + Math.abs(n).toFixed(2);
+    return 'Rs ' + n.toFixed(2);
+}
+
 function selectCustomer(id, name, mobile, outstanding) {
     customerSelect.value = id;
     customerSearch.value = name;
     selectedCustomerName.innerText = name;
     selectedCustomerMobile.innerText = mobile;
-    selectedOutstanding.innerText = parseFloat(outstanding).toFixed(2);
+    selectedOutstanding.innerText = fmtOutstanding(outstanding);
     currentOutstanding = outstanding;
     selectedCustomerDiv.style.display = 'block';
     suggestionsDiv.style.display = 'none';
@@ -704,11 +702,11 @@ function clearCustomerSelection() {
 function validateAmount() {
     const amount = parseFloat(paymentAmount.value) || 0;
     const hasCustomer = customerSelect.value !== '';
-    
+
     if(hasCustomer && amount > 0) {
         if(amount > currentOutstanding) {
-            amountHint.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> Amount exceeds outstanding balance! Maximum: Rs ' + currentOutstanding.toFixed(2);
-            submitBtn.disabled = true;
+            amountHint.innerHTML = '<i class="fas fa-info-circle text-info"></i> Amount exceeds outstanding; an advance of Rs ' + (amount - currentOutstanding).toFixed(2) + ' will be recorded.';
+            submitBtn.disabled = false;
         } else {
             amountHint.innerHTML = '<i class="fas fa-check-circle text-success"></i> Valid amount';
             submitBtn.disabled = false;

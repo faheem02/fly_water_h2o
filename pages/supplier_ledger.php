@@ -26,7 +26,7 @@ if ($supplier_id) {
             $date_condition = "AND DATE(wl.transaction_date) <= '$to_date'";
         }
 
-        $ledger_query = "SELECT wl.* FROM supplier_ledger wl WHERE wl.supplier_id=$supplier_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
+        $ledger_query = "SELECT wl.*, rmp.voucher_no AS purchase_voucher, sp.voucher_no AS payment_voucher FROM supplier_ledger wl LEFT JOIN raw_material_purchases rmp ON wl.reference_type='purchase' AND wl.reference_id = rmp.id LEFT JOIN supplier_payments sp ON wl.reference_type='payment' AND wl.reference_id = sp.id WHERE wl.supplier_id=$supplier_id $date_condition ORDER BY wl.transaction_date ASC, wl.id ASC";
         $ledger = mysqli_query($conn, $ledger_query);
     }
 }
@@ -302,6 +302,7 @@ if($supplier_id && $ledger) {
                         <thead>
                             <tr>
                                 <th style="width: 140px">Date</th>
+                                <th style="width: 110px">Voucher No</th>
                                 <th>Description</th>
                                 <th style="width: 150px" class="text-end">Debit (Payment)</th>
                                 <th style="width: 150px" class="text-end">Credit (Purchase)</th>
@@ -319,6 +320,18 @@ if($supplier_id && $ledger) {
                                         <td>
                                             <i class="far fa-calendar-alt me-1 text-muted"></i>
                                             <?php echo date('d-m-Y h:i A', strtotime($row['transaction_date'])); ?>
+                                        </td>
+                                        <td>
+                                            <?php 
+                                            $voucher_no = '';
+                                            if($row['reference_type'] == 'purchase') { $voucher_no = $row['purchase_voucher']; }
+                                            elseif($row['reference_type'] == 'payment') { $voucher_no = $row['payment_voucher']; }
+                                            ?>
+                                            <?php if($voucher_no): ?>
+                                                <span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($voucher_no); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">—</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php 
@@ -360,7 +373,7 @@ if($supplier_id && $ledger) {
                                 <?php endwhile; ?>
                                 <!-- Closing Balance Row -->
                                 <tr style="background: #f8f9fa; font-weight: 700;">
-                                    <td colspan="4" class="text-end"><strong>Closing Balance</strong></td>
+                                    <td colspan="5" class="text-end"><strong>Closing Balance</strong></td>
                                     <td class="text-end">
                                         <?php if($current_balance >= 0): ?>
                                             <span class="balance-credit">Rs <?php echo number_format($current_balance, 2); ?> <small>(Credit)</small></span>
@@ -371,7 +384,7 @@ if($supplier_id && $ledger) {
                                 </tr>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="5" class="empty-state">
+                                    <td colspan="6" class="empty-state">
                                         <i class="fas fa-book-open"></i>
                                         <p class="mb-0">No transactions found for this supplier.</p>
                                         <small class="text-muted">Add purchases or payments to see ledger entries.</small>
@@ -445,6 +458,7 @@ if($supplier_id && $ledger) {
                         <tr>
                             <th style="width:40px;">#</th>
                             <th style="width:100px;">Date</th>
+                            <th style="width:90px;">Voucher No</th>
                             <th>Description</th>
                             <th style="width:110px;" class="text-end">Debit (Rs)</th>
                             <th style="width:110px;" class="text-end">Credit (Rs)</th>
@@ -467,6 +481,7 @@ if($supplier_id && $ledger) {
                             <tr>
                                 <td><?php echo $sno++; ?></td>
                                 <td><?php echo date('d-m-Y', strtotime($row['transaction_date'])); ?></td>
+                                <td><?php echo htmlspecialchars(($row['reference_type'] == 'purchase') ? $row['purchase_voucher'] : (($row['reference_type'] == 'payment') ? $row['payment_voucher'] : '-')); ?></td>
                                 <td><?php echo htmlspecialchars($row['description']); ?></td>
                                 <td class="text-end"><?php echo $row['debit_amount'] > 0 ? number_format($row['debit_amount'], 2) : '-'; ?></td>
                                 <td class="text-end"><?php echo $row['credit_amount'] > 0 ? number_format($row['credit_amount'], 2) : '-'; ?></td>
@@ -475,13 +490,13 @@ if($supplier_id && $ledger) {
                         <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
+                                <td colspan="7" class="text-center" style="padding:40px;color:#999;">No transactions found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" class="text-end"><strong>Total</strong></td>
+                            <td colspan="4" class="text-end"><strong>Total</strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_debit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($print_total_credit, 2); ?></strong></td>
                             <td class="text-end"><strong><?php echo number_format($current_balance, 2); ?></strong></td>

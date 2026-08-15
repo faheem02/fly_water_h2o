@@ -31,13 +31,14 @@ if(isset($_GET['export']) && $_GET['export'] == 'excel'){
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="stock_report_' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['#', 'Product Name', 'Unit', 'Purchase Price', 'Sale Price', 'Opening Stock', 'Current Stock', 'Min Level', 'Stock Value', 'Status']);
+    fputcsv($out, ['#', 'Product ID', 'Product Name', 'Unit', 'Purchase Price', 'Sale Price', 'Opening Stock', 'Current Stock', 'Min Level', 'Stock Value', 'Status']);
     $counter = 1;
     if($result && mysqli_num_rows($result) > 0){
         while($row = mysqli_fetch_assoc($result)){
             $status = $row['current_stock'] <= $row['min_stock_level'] * 0.5 ? 'Critical' : ($row['current_stock'] <= $row['min_stock_level'] ? 'Low' : 'Normal');
             fputcsv($out, [
                 $counter++,
+                $row['product_code'],
                 $row['product_name'],
                 'Pieces',
                 number_format($row['purchase_price'], 2),
@@ -249,6 +250,7 @@ $summary = mysqli_fetch_assoc($summary_result);
                     <thead>
                         <tr>
                             <th style="width:50px">#</th>
+                            <th style="min-width:90px">Product ID</th>
                             <th style="min-width:160px">Product Name</th>
                             <th style="min-width:80px">Unit</th>
                             <th style="min-width:110px">Purchase Price</th>
@@ -296,6 +298,7 @@ $summary = mysqli_fetch_assoc($summary_result);
                         ?>
                             <tr class="<?php echo $stock_class; ?>">
                                 <td class="text-center fw-semibold"><?php echo $counter++; ?></td>
+                                <td class="text-center"><span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($row['product_code']); ?></span></td>
                                 <td><strong><?php echo htmlspecialchars($row['product_name']); ?></strong></td>
                                 <td>Pieces</td>
                                 <td class="price-purchase">Rs <?php echo number_format($row['purchase_price'], 2); ?></td>
@@ -326,7 +329,7 @@ $summary = mysqli_fetch_assoc($summary_result);
                         else:
                         ?>
                             <tr>
-                                <td colspan="11" class="text-center py-5 text-muted">
+                                <td colspan="12" class="text-center py-5 text-muted">
                                     <i class="fas fa-boxes fa-3x mb-3 d-block"></i>
                                     No products found matching your criteria.
                                 </td>
@@ -335,7 +338,7 @@ $summary = mysqli_fetch_assoc($summary_result);
                     </tbody>
                     <tfoot class="table-light">
                         <tr>
-                            <th colspan="8" class="text-end">Total Inventory Value:</th>
+                            <th colspan="9" class="text-end">Total Inventory Value:</th>
                             <th colspan="3">
                                 <?php 
                                 $total_value_query = "SELECT SUM(current_stock * purchase_price) as total FROM products WHERE status = 'Active'";
@@ -364,7 +367,7 @@ $(document).ready(function() {
     <?php if($result && mysqli_num_rows($result) > 0): ?>
     $('#stockReportTable').DataTable({
         pageLength: 25,
-        order: [[6, 'asc']], // Sort by current stock ascending (lowest first)
+        order: [[7, 'asc']], // Sort by current stock ascending (lowest first)
         language: {
             search: "Search:",
             lengthMenu: "Show _MENU_ entries",

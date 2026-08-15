@@ -102,7 +102,18 @@ $to_dt = $to_date ? $to_date . ' 23:59:59' : '';
 $where = "WHERE 1=1";
 if($from_dt && $to_dt) $where .= " AND transaction_date >= '$from_dt' AND transaction_date <= '$to_dt'";
 
-$cashbook = mysqli_query($conn, "SELECT * FROM cashbook $where ORDER BY transaction_date ASC, id ASC");
+$cashbook = mysqli_query($conn, "SELECT cb.*, 
+    CASE 
+        WHEN cb.reference_type='payment' THEN cp.voucher_no
+        WHEN cb.reference_type='supplier_payment' THEN sp.voucher_no
+        WHEN cb.reference_type='expense' THEN ex.voucher_no
+        ELSE NULL
+    END AS voucher_no
+    FROM cashbook cb
+    LEFT JOIN customer_payments cp ON cp.id = cb.reference_id AND cb.reference_type = 'payment'
+    LEFT JOIN supplier_payments sp ON sp.id = cb.reference_id AND cb.reference_type = 'supplier_payment'
+    LEFT JOIN expenses ex ON ex.id = cb.reference_id AND cb.reference_type = 'expense'
+    $where ORDER BY cb.transaction_date ASC, cb.id ASC");
 
 // Summary
 $total_inflow = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(amount),0) as total FROM cashbook $where AND transaction_type='income'"))['total'];
@@ -260,6 +271,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                             <th>Date</th>
                             <th>Type</th>
                             <th>Source</th>
+                            <th>Voucher #</th>
                             <th>Description</th>
                             <th class="text-end">Amount (Rs)</th>
                             <th class="text-end">Balance (Rs)</th>
@@ -282,6 +294,13 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                                     <?php endif; ?>
                                 </td>
                                 <td><span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"><?php echo htmlspecialchars($source_label); ?></span></td>
+                                <td>
+                                    <?php if(!empty($cb['voucher_no'])): ?>
+                                        <span class="badge bg-dark-subtle text-dark-emphasis rounded-pill"><?php echo htmlspecialchars($cb['voucher_no']); ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?php echo htmlspecialchars($cb['description']); ?></td>
                                 <td class="text-end fw-bold <?php echo $cb['transaction_type'] == 'income' ? 'text-success' : 'text-danger'; ?>">
                                     <?php echo $cb['transaction_type'] == 'income' ? '+' : '-'; ?> Rs <?php echo number_format($cb['amount'], 2); ?>
@@ -294,6 +313,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                                             data-date="<?php echo date('d-m-Y h:i A', strtotime($cb['transaction_date'])); ?>"
                                             data-type="<?php echo $cb['transaction_type']; ?>"
                                             data-source="<?php echo htmlspecialchars($source_label); ?>"
+                                            data-voucher="<?php echo htmlspecialchars($cb['voucher_no'] ?? ''); ?>"
                                             data-desc="<?php echo htmlspecialchars($cb['description'], ENT_QUOTES); ?>"
                                             data-amount="<?php echo number_format($cb['amount'], 2); ?>"
                                             data-balance="<?php echo number_format($cb['balance'], 2); ?>">
@@ -304,6 +324,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                                             data-date="<?php echo date('d-m-Y h:i A', strtotime($cb['transaction_date'])); ?>"
                                             data-type="<?php echo $cb['transaction_type']; ?>"
                                             data-source="<?php echo htmlspecialchars($source_label); ?>"
+                                            data-voucher="<?php echo htmlspecialchars($cb['voucher_no'] ?? ''); ?>"
                                             data-desc="<?php echo htmlspecialchars($cb['description'], ENT_QUOTES); ?>"
                                             data-amount="<?php echo number_format($cb['amount'], 2); ?>"
                                             data-balance="<?php echo number_format($cb['balance'], 2); ?>">
@@ -330,7 +351,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                             </tr>
                         <?php endwhile; else: ?>
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
+                                <td colspan="8" class="text-center py-5 text-muted">
                                     <i class="fas fa-book fa-3x mb-2 d-block opacity-25"></i>
                                     No transactions found.
                                 </td>
@@ -445,6 +466,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                 <table class="table table-sm table-borderless mb-0">
                     <tbody>
                         <tr><td class="text-muted">Source</td><td class="text-end fw-semibold" id="view_cash_source"></td></tr>
+                        <tr><td class="text-muted">Voucher No</td><td class="text-end fw-semibold" id="view_cash_voucher"></td></tr>
                         <tr><td class="text-muted">Description</td><td class="text-end fw-semibold" id="view_cash_desc"></td></tr>
                         <tr><td class="text-muted">Amount</td><td class="text-end fw-bold" id="view_cash_amount"></td></tr>
                         <tr><td class="text-muted">Balance</td><td class="text-end fw-bold" id="view_cash_balance"></td></tr>
@@ -481,6 +503,8 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                     <th style="width:40px;">#</th>
                     <th>Date</th>
                     <th>Type</th>
+                    <th>Source</th>
+                    <th>Voucher</th>
                     <th>Description</th>
                     <th class="text-end">Amount (Rs)</th>
                     <th class="text-end">Balance (Rs)</th>
@@ -488,7 +512,18 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
             </thead>
             <tbody>
                 <?php
-                $print_rows = mysqli_query($conn, "SELECT * FROM cashbook $where ORDER BY transaction_date ASC, id ASC");
+                $print_rows = mysqli_query($conn, "SELECT cb.*, 
+                    CASE 
+                        WHEN cb.reference_type='payment' THEN cp.voucher_no
+                        WHEN cb.reference_type='supplier_payment' THEN sp.voucher_no
+                        WHEN cb.reference_type='expense' THEN ex.voucher_no
+                        ELSE NULL
+                    END AS voucher_no
+                    FROM cashbook cb
+                    LEFT JOIN customer_payments cp ON cp.id = cb.reference_id AND cb.reference_type = 'payment'
+                    LEFT JOIN supplier_payments sp ON sp.id = cb.reference_id AND cb.reference_type = 'supplier_payment'
+                    LEFT JOIN expenses ex ON ex.id = cb.reference_id AND cb.reference_type = 'expense'
+                    $where ORDER BY cb.transaction_date ASC, cb.id ASC");
                 $sno = 1;
                 $print_inflow = 0;
                 $print_outflow = 0;
@@ -500,18 +535,20 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                         <td><?php echo $sno++; ?></td>
                         <td><?php echo date('d-m-Y h:i A', strtotime($pc['transaction_date'])); ?></td>
                         <td><?php echo ucfirst($pc['transaction_type']); ?></td>
+                        <td><?php echo htmlspecialchars(cashbook_source_label($pc['reference_type'])); ?></td>
+                        <td><?php echo !empty($pc['voucher_no']) ? htmlspecialchars($pc['voucher_no']) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($pc['description']); ?></td>
                         <td class="text-end"><?php echo ($pc['transaction_type'] == 'income' ? '+' : '-') . ' ' . number_format($pc['amount'], 2); ?></td>
                         <td class="text-end"><?php echo number_format($pc['balance'], 2); ?></td>
                     </tr>
                 <?php endwhile; ?>
                     <tr style="font-weight:700;background:#f0f0f0;">
-                        <td colspan="4" class="text-end">Inflow: Rs <?php echo number_format($print_inflow, 2); ?> &nbsp;|&nbsp; Outflow: Rs <?php echo number_format($print_outflow, 2); ?></td>
+                        <td colspan="6" class="text-end">Inflow: Rs <?php echo number_format($print_inflow, 2); ?> &nbsp;|&nbsp; Outflow: Rs <?php echo number_format($print_outflow, 2); ?></td>
                         <td class="text-end">Net: Rs <?php echo number_format($print_inflow - $print_outflow, 2); ?></td>
                         <td class="text-end">Closing: Rs <?php echo number_format($closing_balance, 2); ?></td>
                     </tr>
                 <?php else: ?>
-                    <tr><td colspan="6" class="text-center" style="padding:40px;color:#999;">No transactions found.</td></tr>
+                    <tr><td colspan="8" class="text-center" style="padding:40px;color:#999;">No transactions found.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -633,6 +670,7 @@ function printCashEntry(id) {
         date: btn.getAttribute('data-date'),
         type: btn.getAttribute('data-type'),
         source: btn.getAttribute('data-source'),
+        voucher: btn.getAttribute('data-voucher'),
         desc: btn.getAttribute('data-desc'),
         amount: btn.getAttribute('data-amount'),
         balance: btn.getAttribute('data-balance')
@@ -653,7 +691,7 @@ function printCashEntry(id) {
         </div>
         <div class="print-title-row">
             <span class="print-doc-title">Cash ${d.type === 'income' ? 'Inflow' : 'Outflow'} Voucher</span>
-            <span class="print-date-range">Voucher #: ${d.id}</span>
+            <span class="print-date-range">Voucher #: ${d.voucher || d.id}</span>
         </div>
         <div class="print-thin-divider"></div>
         <table class="print-table">
@@ -661,6 +699,7 @@ function printCashEntry(id) {
                 <tr><th>Date & Time</th><td>${d.date}</td></tr>
                 <tr><th>Type</th><td>${d.type === 'income' ? 'Inflow (Cash Received)' : 'Outflow (Cash Paid)'}</td></tr>
                 <tr><th>Source</th><td>${d.source}</td></tr>
+                <tr><th>Voucher No</th><td>${d.voucher || '—'}</td></tr>
                 <tr><th>Description</th><td>${d.desc}</td></tr>
                 <tr><th>Amount</th><td><strong>${sign} Rs ${d.amount}</strong></td></tr>
                 <tr><th>Balance After</th><td>Rs ${d.balance}</td></tr>
@@ -735,6 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('view_cash_type').className = this.getAttribute('data-type') === 'income' ? 'text-success fs-5' : 'text-danger fs-5';
             document.getElementById('view_cash_date').textContent = 'Date: ' + this.getAttribute('data-date');
             document.getElementById('view_cash_source').textContent = this.getAttribute('data-source');
+            document.getElementById('view_cash_voucher').textContent = this.getAttribute('data-voucher') || '—';
             document.getElementById('view_cash_desc').textContent = this.getAttribute('data-desc');
             document.getElementById('view_cash_amount').textContent = (this.getAttribute('data-type') === 'income' ? '+' : '-') + ' Rs ' + this.getAttribute('data-amount');
             document.getElementById('view_cash_amount').className = this.getAttribute('data-type') === 'income' ? 'text-end fw-bold text-success' : 'text-end fw-bold text-danger';

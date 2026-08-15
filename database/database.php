@@ -178,10 +178,12 @@ CREATE TABLE IF NOT EXISTS `stock_ledger` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `expense_categories` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `category_code` VARCHAR(10) DEFAULT NULL,
     `category_name` VARCHAR(200) NOT NULL,
     `description` TEXT DEFAULT NULL,
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_category_code` (`category_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -189,6 +191,7 @@ CREATE TABLE IF NOT EXISTS `expense_categories` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `expenses` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `voucher_no` VARCHAR(30) DEFAULT NULL,
     `expense_date` DATE NOT NULL,
     `expense_category` INT(11) NOT NULL,
     `description` TEXT DEFAULT NULL,
@@ -199,7 +202,8 @@ CREATE TABLE IF NOT EXISTS `expenses` (
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `expense_category` (`expense_category`),
-    KEY `expense_date` (`expense_date`)
+    KEY `expense_date` (`expense_date`),
+    KEY `idx_expenses_voucher` (`voucher_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- -----------------------------------------------------------
@@ -283,6 +287,7 @@ CREATE TABLE IF NOT EXISTS `supplier_payments` (
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `raw_materials` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `material_code` VARCHAR(10) DEFAULT NULL,
     `material_name` VARCHAR(200) NOT NULL,
     `unit` VARCHAR(50) NOT NULL DEFAULT 'Pieces',
     `purchase_price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -293,6 +298,7 @@ CREATE TABLE IF NOT EXISTS `raw_materials` (
     `status` VARCHAR(20) NOT NULL DEFAULT 'Active',
     `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_material_code` (`material_code`),
     KEY `status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -466,6 +472,52 @@ if (mysqli_multi_query($conn, $sql)) {
     if ($check_purchase_price && mysqli_num_rows($check_purchase_price) == 0) {
         mysqli_query($conn, "ALTER TABLE products ADD COLUMN purchase_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER product_name");
         echo "<li>✓ Products table updated (added purchase_price)</li>";
+    }
+
+    // Migrate expenses table to add voucher_no column (EXP- prefix)
+    $check_exp_voucher = mysqli_query($conn, "SHOW COLUMNS FROM expenses LIKE 'voucher_no'");
+    if ($check_exp_voucher && mysqli_num_rows($check_exp_voucher) == 0) {
+        mysqli_query($conn, "ALTER TABLE expenses ADD COLUMN voucher_no VARCHAR(30) DEFAULT NULL AFTER id, ADD KEY idx_expenses_voucher (voucher_no)");
+        $exp_rows = mysqli_query($conn, "SELECT id FROM expenses ORDER BY id");
+        $exp_seq = 0;
+        if ($exp_rows) {
+            while ($r = mysqli_fetch_assoc($exp_rows)) {
+                $exp_seq++;
+                $voucher = 'EXP-' . str_pad((string)$exp_seq, 5, '0', STR_PAD_LEFT);
+                mysqli_query($conn, "UPDATE expenses SET voucher_no = '$voucher' WHERE id = {$r['id']}");
+            }
+        }
+        echo "<li>✓ Expenses table updated (added voucher_no)</li>";
+    }
+
+    // Migrate expense_categories table to add category_code column (5-digit sequential ID)
+    $check_cat_code = mysqli_query($conn, "SHOW COLUMNS FROM expense_categories LIKE 'category_code'");
+    if ($check_cat_code && mysqli_num_rows($check_cat_code) == 0) {
+        mysqli_query($conn, "ALTER TABLE expense_categories ADD COLUMN category_code VARCHAR(10) DEFAULT NULL AFTER id, ADD UNIQUE KEY uq_category_code (category_code)");
+        $cat_rows = mysqli_query($conn, "SELECT id FROM expense_categories ORDER BY id");
+        $cat_code = 10000;
+        if ($cat_rows) {
+            while ($r = mysqli_fetch_assoc($cat_rows)) {
+                $cat_code++;
+                mysqli_query($conn, "UPDATE expense_categories SET category_code = $cat_code WHERE id = {$r['id']}");
+            }
+        }
+        echo "<li>✓ Expense Categories table updated (added category_code)</li>";
+    }
+
+    // Migrate raw_materials table to add material_code column (5-digit sequential ID)
+    $check_mat_code = mysqli_query($conn, "SHOW COLUMNS FROM raw_materials LIKE 'material_code'");
+    if ($check_mat_code && mysqli_num_rows($check_mat_code) == 0) {
+        mysqli_query($conn, "ALTER TABLE raw_materials ADD COLUMN material_code VARCHAR(10) DEFAULT NULL AFTER id, ADD UNIQUE KEY uq_material_code (material_code)");
+        $mat_rows = mysqli_query($conn, "SELECT id FROM raw_materials ORDER BY id");
+        $mat_code = 10000;
+        if ($mat_rows) {
+            while ($r = mysqli_fetch_assoc($mat_rows)) {
+                $mat_code++;
+                mysqli_query($conn, "UPDATE raw_materials SET material_code = $mat_code WHERE id = {$r['id']}");
+            }
+        }
+        echo "<li>✓ Raw Materials table updated (added material_code)</li>";
     }
 
     // Migrate users table to add role column

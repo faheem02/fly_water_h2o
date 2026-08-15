@@ -27,9 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_expense'])) {
 
     $cat = mysqli_fetch_assoc(mysqli_query($conn, "SELECT category_name FROM expense_categories WHERE id=$category_id"));
     $category_name = $cat['category_name'] ?? '';
+    $voucher_no = generate_voucher_no($conn, 'expenses', 'voucher_no', 'EXP-');
 
-    $query = "INSERT INTO expenses (expense_date, expense_category, description, amount, payment_method, receipt_no, created_by, created_datetime) 
-              VALUES ('$expense_date', $category_id, '$description', $amount, '$payment_method', '$receipt_no', {$_SESSION['admin_id']}, '$datetime')";
+    $query = "INSERT INTO expenses (voucher_no, expense_date, expense_category, description, amount, payment_method, receipt_no, created_by, created_datetime) 
+              VALUES ('$voucher_no', '$expense_date', $category_id, '$description', $amount, '$payment_method', '$receipt_no', {$_SESSION['admin_id']}, '$datetime')";
 
     if(mysqli_query($conn, $query)) {
         $expense_id = mysqli_insert_id($conn);
@@ -217,6 +218,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                     <thead>
                         <tr>
                             <th>Date</th>
+                            <th>Voucher No</th>
                             <th>Category</th>
                             <th>Description</th>
                             <th>Payment Method</th>
@@ -230,6 +232,13 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                             while($e = mysqli_fetch_assoc($expenses)): ?>
                             <tr>
                                 <td><?php echo date('d-m-Y', strtotime($e['expense_date'])); ?></td>
+                                <td>
+                                    <?php if(!empty($e['voucher_no'])): ?>
+                                        <span class="badge bg-dark-subtle text-dark-emphasis rounded-pill"><?php echo htmlspecialchars($e['voucher_no']); ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-3"><?php echo htmlspecialchars($e['category_name'] ?? '—'); ?></span>
                                 </td>
@@ -246,7 +255,8 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                                             data-description="<?php echo htmlspecialchars($e['description'], ENT_QUOTES); ?>"
                                             data-amount="<?php echo number_format($e['amount'], 2); ?>"
                                             data-method="<?php echo htmlspecialchars($e['payment_method']); ?>"
-                                            data-receipt="<?php echo htmlspecialchars($e['receipt_no'] ?? '', ENT_QUOTES); ?>">
+                                            data-receipt="<?php echo htmlspecialchars($e['receipt_no'] ?? '', ENT_QUOTES); ?>"
+                                            data-voucher="<?php echo htmlspecialchars($e['voucher_no'] ?? ''); ?>">
                                             <i class="fas fa-eye"></i>
                                         </button>
                                         <button type="button" class="btn btn-xs btn-outline-dark printExpenseBtn" title="Print"
@@ -256,7 +266,8 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                                             data-description="<?php echo htmlspecialchars($e['description'], ENT_QUOTES); ?>"
                                             data-amount="<?php echo number_format($e['amount'], 2); ?>"
                                             data-method="<?php echo htmlspecialchars($e['payment_method']); ?>"
-                                            data-receipt="<?php echo htmlspecialchars($e['receipt_no'] ?? '', ENT_QUOTES); ?>">
+                                            data-receipt="<?php echo htmlspecialchars($e['receipt_no'] ?? '', ENT_QUOTES); ?>"
+                                            data-voucher="<?php echo htmlspecialchars($e['voucher_no'] ?? ''); ?>">
                                             <i class="fas fa-print"></i>
                                         </button>
                                         <button type="button" class="btn btn-xs btn-warning editExpenseBtn" title="Edit"
@@ -277,7 +288,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                             </tr>
                         <?php endwhile; else: ?>
                             <tr>
-                                <td colspan="7" class="text-center py-5 text-muted">
+                                <td colspan="8" class="text-center py-5 text-muted">
                                     <i class="fas fa-receipt fa-3x mb-2 d-block opacity-25"></i>
                                     No expenses found for the selected period.
                                 </td>
@@ -424,6 +435,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                 <table class="table table-sm table-borderless mb-0">
                     <tbody>
                         <tr><td class="text-muted">Description</td><td class="text-end fw-semibold" id="view_description"></td></tr>
+                        <tr><td class="text-muted">Voucher No</td><td class="text-end fw-semibold" id="view_voucher"></td></tr>
                         <tr><td class="text-muted">Payment Method</td><td class="text-end fw-semibold" id="view_method"></td></tr>
                         <tr><td class="text-muted">Receipt No</td><td class="text-end fw-semibold" id="view_receipt"></td></tr>
                         <tr><td class="text-muted">Amount</td><td class="text-end fw-bold text-danger fs-5" id="view_amount"></td></tr>
@@ -459,6 +471,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                 <tr>
                     <th style="width:40px;">#</th>
                     <th>Date</th>
+                    <th>Voucher No</th>
                     <th>Category</th>
                     <th>Description</th>
                     <th>Method</th>
@@ -478,6 +491,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                     <tr>
                         <td><?php echo $sno++; ?></td>
                         <td><?php echo date('d-m-Y', strtotime($pe['expense_date'])); ?></td>
+                        <td><?php echo !empty($pe['voucher_no']) ? htmlspecialchars($pe['voucher_no']) : '—'; ?></td>
                         <td><?php echo htmlspecialchars($pe['category_name'] ?? '—'); ?></td>
                         <td><?php echo htmlspecialchars($pe['description']); ?></td>
                         <td><?php echo htmlspecialchars($pe['payment_method']); ?></td>
@@ -486,11 +500,11 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                     </tr>
                 <?php endwhile; ?>
                     <tr style="font-weight:700;background:#f0f0f0;">
-                        <td colspan="6" class="text-end">Total</td>
+                        <td colspan="7" class="text-end">Total</td>
                         <td class="text-end">Rs <?php echo number_format($print_total, 2); ?></td>
                     </tr>
                 <?php else: ?>
-                    <tr><td colspan="7" class="text-center" style="padding:40px;color:#999;">No expenses found.</td></tr>
+                    <tr><td colspan="8" class="text-center" style="padding:40px;color:#999;">No expenses found.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -614,7 +628,8 @@ function printExpense(id) {
         description: btn.getAttribute('data-description'),
         amount: btn.getAttribute('data-amount'),
         method: btn.getAttribute('data-method'),
-        receipt: btn.getAttribute('data-receipt')
+        receipt: btn.getAttribute('data-receipt'),
+        voucher: btn.getAttribute('data-voucher')
     };
     const slip = `
         <div class="print-header">
@@ -631,12 +646,13 @@ function printExpense(id) {
         </div>
         <div class="print-title-row">
             <span class="print-doc-title">Expense Voucher</span>
-            <span class="print-date-range">Receipt #: ${d.id}</span>
+            <span class="print-date-range">Voucher #: ${d.voucher || d.id}</span>
         </div>
         <div class="print-thin-divider"></div>
         <table class="print-table">
             <tbody>
                 <tr><th>Date</th><td>${d.date}</td></tr>
+                <tr><th>Voucher No</th><td>${d.voucher || '—'}</td></tr>
                 <tr><th>Category</th><td>${d.category}</td></tr>
                 <tr><th>Description</th><td>${d.description}</td></tr>
                 <tr><th>Payment Method</th><td>${d.method}</td></tr>
@@ -712,6 +728,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('view_date').textContent = 'Date: ' + this.getAttribute('data-date');
             document.getElementById('view_category').textContent = this.getAttribute('data-category');
             document.getElementById('view_description').textContent = this.getAttribute('data-description');
+            document.getElementById('view_voucher').textContent = this.getAttribute('data-voucher') || '—';
             document.getElementById('view_method').textContent = this.getAttribute('data-method');
             document.getElementById('view_receipt').textContent = this.getAttribute('data-receipt') || '—';
             document.getElementById('view_amount').textContent = 'Rs ' + this.getAttribute('data-amount');

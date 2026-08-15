@@ -12,9 +12,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_opening_stock'])){
     $sale_price = floatval($_POST['sale_price']);
     $opening_stock = floatval($_POST['opening_stock']);
     $min_stock_level = floatval($_POST['min_stock_level']);
+    $material_code = generate_5digit_code($conn, 'raw_materials', 'material_code');
     
-    $query = "INSERT INTO raw_materials (material_name, unit, purchase_price, sale_price, current_stock, opening_stock, min_stock_level, status, created_datetime) 
-              VALUES ('$material_name', '$unit', $purchase_price, $sale_price, $opening_stock, $opening_stock, $min_stock_level, 'Active', NOW())";
+    $query = "INSERT INTO raw_materials (material_code, material_name, unit, purchase_price, sale_price, current_stock, opening_stock, min_stock_level, status, created_datetime) 
+              VALUES ('$material_code', '$material_name', '$unit', $purchase_price, $sale_price, $opening_stock, $opening_stock, $min_stock_level, 'Active', NOW())";
     
     if(mysqli_query($conn, $query)){
         $material_id = mysqli_insert_id($conn);
@@ -197,6 +198,9 @@ mysqli_data_seek($result, 0);
             <p class="text-muted mb-0">Manage raw materials with purchase & sale prices</p>
         </div>
         <div>
+            <button type="button" class="btn btn-outline-dark rounded-pill px-4 py-2" onclick="printStock()">
+                <i class="fas fa-print me-2"></i> Print
+            </button>
             <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addMaterialModal">
                 <i class="fas fa-plus-circle me-2"></i> Add Raw Material
             </button>
@@ -263,7 +267,7 @@ mysqli_data_seek($result, 0);
                 <table class="table table-hover materials-table mb-0" id="stockTable">
                     <thead>
                         <tr>
-                            <th style="width:50px">ID</th>
+                            <th style="width:80px">Material ID</th>
                             <th style="min-width:160px">Material Name</th>
                             <th style="min-width:80px">Unit</th>
                             <th style="min-width:110px">Purchase Price</th>
@@ -296,7 +300,7 @@ mysqli_data_seek($result, 0);
                                 $margin_percent = $row['purchase_price'] > 0 ? ($margin / $row['purchase_price']) * 100 : 0;
                             ?>
                                 <tr class="<?php echo $stock_class; ?>">
-                                    <td class="text-center fw-semibold"><?php echo $row['id']; ?></td>
+                                    <td class="text-center fw-semibold"><?php echo htmlspecialchars($row['material_code']); ?></td>
                                     <td><strong><?php echo htmlspecialchars($row['material_name']); ?></strong></td>
                                     <td><?php echo htmlspecialchars($row['unit']); ?></td>
                                     <td class="purchase-price">Rs <?php echo number_format($row['purchase_price'], 2); ?></td>
@@ -351,6 +355,122 @@ mysqli_data_seek($result, 0);
 
 </div>
 </div>
+
+<!-- Print Overlay -->
+<div id="print-overlay" style="display:none;">
+    <div id="print-area">
+        <div class="print-header">
+            <div class="print-brand-row">
+                <div class="print-logo-circle"><i class="fas fa-tint"></i></div>
+                <div class="print-brand-text">
+                    <div class="print-owner-name"><?php echo htmlspecialchars($owner_name); ?></div>
+                    <div class="print-company"><?php echo htmlspecialchars($company_name); ?></div>
+                    <div class="print-address"><?php echo htmlspecialchars($owner_address); ?></div>
+                    <div class="print-phone"><?php echo htmlspecialchars($owner_phone); ?></div>
+                </div>
+            </div>
+            <div class="print-divider"></div>
+            <div class="print-title-row">
+                <span class="print-doc-title">Raw Material Stock Report</span>
+                <span class="print-date-range"><?php echo date('d-m-Y'); ?></span>
+            </div>
+        </div>
+
+        <div class="print-sub-title">Current Stock Levels</div>
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th style="width:24px;">#</th>
+                    <th style="width:70px;">Material ID</th>
+                    <th>Material Name</th>
+                    <th style="width:70px;">Unit</th>
+                    <th style="width:80px;" class="text-end">Purchase (Rs)</th>
+                    <th style="width:80px;" class="text-end">Sale (Rs)</th>
+                    <th style="width:70px;" class="text-end">Opening</th>
+                    <th style="width:70px;" class="text-end">Current</th>
+                    <th style="width:60px;" class="text-end">Min</th>
+                    <th style="width:70px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                $print_materials = mysqli_query($conn, "SELECT * FROM raw_materials ORDER BY material_name");
+                $sno = 1;
+                if($print_materials && mysqli_num_rows($print_materials) > 0):
+                    while($pm = mysqli_fetch_assoc($print_materials)):
+                        if($pm['current_stock'] <= $pm['min_stock_level'] * 0.5){
+                            $pstat = 'Critical';
+                        } elseif($pm['current_stock'] <= $pm['min_stock_level']){
+                            $pstat = 'Low';
+                        } else {
+                            $pstat = 'Normal';
+                        }
+                ?>
+                    <tr>
+                        <td><?php echo $sno++; ?></td>
+                        <td><?php echo htmlspecialchars($pm['material_code']); ?></td>
+                        <td><strong><?php echo htmlspecialchars($pm['material_name']); ?></strong></td>
+                        <td><?php echo htmlspecialchars($pm['unit']); ?></td>
+                        <td class="text-end"><?php echo number_format($pm['purchase_price'], 2); ?></td>
+                        <td class="text-end"><?php echo number_format($pm['sale_price'], 2); ?></td>
+                        <td class="text-end"><?php echo number_format($pm['opening_stock'], 2); ?></td>
+                        <td class="text-end"><?php echo number_format($pm['current_stock'], 2); ?></td>
+                        <td class="text-end"><?php echo number_format($pm['min_stock_level'], 2); ?></td>
+                        <td><?php echo $pstat; ?></td>
+                    </tr>
+                <?php endwhile; ?>
+                <?php else: ?>
+                    <tr><td colspan="10" class="text-center" style="padding:40px;color:#999;">No raw materials found.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <div class="print-footer">
+            Generated on: <?php echo date('d-m-Y h:i A'); ?>
+        </div>
+    </div>
+</div>
+
+<style>
+#print-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    z-index: 999999;
+    overflow: auto;
+}
+#print-area {
+    width: 900px;
+    margin: 0 auto;
+    padding: 25px 30px;
+    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+    color: #222;
+}
+.print-header { margin-bottom: 18px; }
+.print-brand-row { display: flex; align-items: center; gap: 16px; }
+.print-logo-circle { width: 55px; height: 55px; background: linear-gradient(135deg, #A04657, #c96b7e); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 25px; color: #fff; flex-shrink: 0; }
+.print-brand-text { display: flex; flex-direction: column; gap: 1px; }
+.print-company { font-size: 17px; font-weight: 700; color: #A04657; font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif; }
+.print-owner-name { font-size: 21px; font-weight: 800; color: #222; font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif; }
+.print-address { font-size: 12px; color: #666; }
+.print-phone { font-size: 13px; font-weight: 600; color: #A04657; }
+.print-divider { height: 2px; background: linear-gradient(to right, #A04657, #e0a0ab); margin: 12px 0 8px; border-radius: 2px; }
+.print-title-row { display: flex; justify-content: space-between; align-items: center; }
+.print-doc-title { font-size: 14px; font-weight: 700; color: #444; font-family: 'Quicksand', 'Segoe UI', Arial, sans-serif; }
+.print-date-range { font-size: 12px; color: #888; background: #f5f5f5; padding: 5px 14px; border-radius: 20px; }
+.print-sub-title { font-size: 11px; font-weight: 700; color: #A04657; margin: 10px 0 4px; }
+.print-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 6px; }
+.print-table th { background: #A04657; color: #fff; padding: 7px 9px; font-weight: 600; font-size: 11px; text-align: left; white-space: nowrap; }
+.print-table th.text-end, .print-table td.text-end { text-align: right; }
+.print-table td { padding: 6px 9px; border-bottom: 1px solid #e6e6e6; color: #333; }
+.print-table tbody tr:nth-child(even) { background: #f9f9f9; }
+.print-table tbody tr:last-child td { border-bottom: 2px solid #A04657; }
+.print-footer { margin-top: 12px; text-align: center; font-size: 10px; color: #aaa; padding-top: 10px; border-top: 1px solid #eee; }
+</style>
 
 <!-- Add Raw Material Modal -->
 <div class="modal fade" id="addMaterialModal" tabindex="-1" aria-hidden="true">
@@ -522,6 +642,64 @@ function editPrices(id, name, purchasePrice, salePrice) {
     $('#purchase_price').val(purchasePrice);
     $('#sale_price').val(salePrice);
     $('#editPricesModal').modal('show');
+}
+
+function printStock() {
+    const content = document.getElementById('print-area').innerHTML;
+    const w = window.open('', '_blank');
+    w.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Raw Material Stock Report</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: Arial, sans-serif; background: #f0f0f0; }
+                @page { size: A4 landscape; margin: 8mm; }
+                .toolbar { position: sticky; top: 0; background: #fff; border-bottom: 2px solid #A04657; padding: 10px 20px; display: flex; gap: 10px; align-items: center; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                .toolbar button { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+                .btn-print { background: #A04657; color: #fff; }
+                .btn-print:hover { background: #8a3a4a; }
+                .btn-close { background: #6c757d; color: #fff; margin-left: auto; }
+                .btn-close:hover { background: #5a6268; }
+                .report-wrap { max-width: 1000px; margin: 0 auto; padding: 20px; }
+                .print-header { margin-bottom: 18px; }
+                .print-brand-row { display: flex; align-items: center; gap: 16px; }
+                .print-logo-circle { width: 55px; height: 55px; background: linear-gradient(135deg, #A04657, #c96b7e); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 25px; color: #fff; flex-shrink: 0; }
+                .print-brand-text { display: flex; flex-direction: column; gap: 1px; }
+                .print-company { font-size: 17px; font-weight: 700; color: #A04657; }
+                .print-owner-name { font-size: 21px; font-weight: 800; color: #222; }
+                .print-address { font-size: 12px; color: #666; }
+                .print-phone { font-size: 13px; font-weight: 600; color: #A04657; }
+                .print-divider { height: 2px; background: linear-gradient(to right, #A04657, #e0a0ab); margin: 12px 0 8px; border-radius: 2px; }
+                .print-title-row { display: flex; justify-content: space-between; align-items: center; }
+                .print-doc-title { font-size: 14px; font-weight: 700; color: #444; }
+                .print-date-range { font-size: 12px; color: #888; background: #f5f5f5; padding: 5px 14px; border-radius: 20px; }
+                .print-sub-title { font-size: 11px; font-weight: 700; color: #A04657; margin: 10px 0 4px; }
+                table.print-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 6px; }
+                .print-table th { background: #A04657; color: #fff; padding: 7px 9px; font-weight: 600; font-size: 11px; text-align: left; white-space: nowrap; }
+                .print-table th.text-end, .print-table td.text-end { text-align: right; }
+                .print-table td { padding: 6px 9px; border-bottom: 1px solid #e6e6e6; color: #333; }
+                .print-table tbody tr:nth-child(even) { background: #f9f9f9; }
+                .print-table tbody tr:last-child td { border-bottom: 2px solid #A04657; }
+                .print-footer { margin-top: 12px; text-align: center; font-size: 10px; color: #aaa; padding-top: 10px; border-top: 1px solid #eee; }
+                @media print { .toolbar { display: none; } body { background: #fff; } }
+            </style>
+        </head>
+        <body>
+            <div class="toolbar">
+                <strong style="color:#A04657;">Raw Material Stock Report</strong>
+                <button class="btn-print" onclick="window.print()">Print</button>
+                <button class="btn-close" onclick="window.close()">Close</button>
+            </div>
+            <div class="report-wrap">
+                ${content}
+            </div>
+        </body>
+        </html>
+    `);
+    w.document.close();
 }
 </script>
 
