@@ -253,9 +253,9 @@ function ref_type_label($type, $in) {
                         <?php if (count($rows) > 0): ?>
                             <?php foreach ($rows as $sl): ?>
                                 <tr>
-                                    <td class="text-muted fw-semibold">#<?php echo $sl['id']; ?></td>
+                                    <td class="text-muted fw-semibold"><?php echo htmlspecialchars($sl['product_code']); ?></td>
                                     <td class="text-nowrap" data-order="<?php echo htmlspecialchars($sl['transaction_date']); ?>"><?php echo date('d-m-Y h:i A', strtotime($sl['transaction_date'])); ?></td>
-                                    <td><strong><?php echo htmlspecialchars($sl['product_name']); ?></strong> <span class="badge bg-light text-dark border rounded-pill"><?php echo htmlspecialchars($sl['product_code']); ?></span></td>
+                                    <td><strong><?php echo htmlspecialchars($sl['product_name']); ?></strong></td>
                                     <td>
                                         <span class="badge rounded-pill bg-light text-dark border">
                                             <i class="fas fa-tag me-1"></i><?php echo ref_type_label($sl['reference_type'], $sl['quantity_in']); ?>
@@ -348,9 +348,9 @@ function ref_type_label($type, $in) {
                 <?php if (count($rows) > 0): $sno = 1; foreach ($rows as $sl): ?>
                     <tr>
                         <td><?php echo $sno++; ?></td>
-                        <td><?php echo $sl['id']; ?></td>
+                        <td><?php echo htmlspecialchars($sl['product_code']); ?></td>
                         <td><?php echo date('d-m-Y h:i A', strtotime($sl['transaction_date'])); ?></td>
-                        <td><?php echo htmlspecialchars($sl['product_name']); ?> (<?php echo htmlspecialchars($sl['product_code']); ?>)</td>
+                        <td><?php echo htmlspecialchars($sl['product_name']); ?></td>
                         <td><?php echo ref_type_label($sl['reference_type'], $sl['quantity_in']); ?></td>
                         <td class="text-end"><?php echo $sl['quantity_in'] > 0 ? number_format($sl['quantity_in']) : '-'; ?></td>
                         <td class="text-end"><?php echo $sl['quantity_out'] > 0 ? number_format($sl['quantity_out']) : '-'; ?></td>

@@ -4,6 +4,9 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
 $message = '';
 
+// Next auto-generated 5-digit supplier ID (shown on Add form)
+$next_supplier_code = generate_5digit_code($conn, 'suppliers', 'supplier_code');
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supplier'])) {
     $supplier_name = mysqli_real_escape_string($conn, $_POST['supplier_name']);
     $contact_person = mysqli_real_escape_string($conn, $_POST['contact_person']);
@@ -19,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supplier'])) {
     if (empty($supplier_name) || empty($mobile)) {
         $message = "<div class='alert alert-danger'>Supplier Name and Mobile are required!</div>";
     } else {
-        $supplier_code = generate_5digit_code($conn, 'suppliers', 'supplier_code');
+        $supplier_code = !empty($_POST['supplier_code']) ? mysqli_real_escape_string($conn, $_POST['supplier_code']) : generate_5digit_code($conn, 'suppliers', 'supplier_code');
         $query = "INSERT INTO suppliers (supplier_code, supplier_name, contact_person, mobile, phone, email, address, ntn_no, opening_balance, current_balance, status, created_datetime) 
                   VALUES ('$supplier_code', '$supplier_name', '$contact_person', '$mobile', '$phone', '$email', '$address', '$ntn_no', $opening_balance, $opening_balance, '$status', '$datetime')";
         
@@ -67,6 +70,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supplier'])) {
         <div class="card-body p-4">
             <form method="POST">
                 <div class="row g-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Supplier ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                            <input type="text" name="supplier_code" class="form-control" value="<?php echo htmlspecialchars($next_supplier_code); ?>" readonly>
+                        </div>
+                        <small class="text-muted">This 5-digit ID is auto-generated for this supplier</small>
+                    </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Supplier Name *</label>
                         <input type="text" name="supplier_name" class="form-control" placeholder="Enter supplier name" required>

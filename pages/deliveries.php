@@ -21,6 +21,9 @@ $salesman_only = is_salesman() ? ' AND ' . salesman_match_condition($conn) : '';
 $success = '';
 $error = '';
 
+// Next auto-generated sale voucher (shown on Record Delivery form)
+$next_sls_voucher = generate_voucher_no($conn, 'water_deliveries', 'voucher_no', 'SLS-');
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
     $product_id = intval($_POST['product_id']);
     $bottles = intval($_POST['bottles_delivered']);
@@ -71,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
         } else {
             // Insert delivery record with product_id
             $entry_salesman = isset($_SESSION['admin_name']) ? mysqli_real_escape_string($conn, $_SESSION['admin_name']) : '';
-            $voucher_no = generate_voucher_no($conn, 'water_deliveries', 'voucher_no', 'SLS-');
+            $voucher_no = !empty($_POST['voucher_no']) ? mysqli_real_escape_string($conn, $_POST['voucher_no']) : generate_voucher_no($conn, 'water_deliveries', 'voucher_no', 'SLS-');
             mysqli_query($conn, "INSERT INTO water_deliveries (voucher_no, customer_id, product_id, bottles_delivered, empty_bottles_returned, bottle_rate, total_amount, salesman, notes, delivery_datetime) 
                                  VALUES ('$voucher_no', $customer_id, $product_id, $bottles, $empties_returned, $rate, $total, '$entry_salesman', '$notes', '$datetime')");
             
@@ -139,13 +142,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
 $customers_list = mysqli_query($conn, "SELECT c.id, c.customer_code, c.customer_name, c.mobile, c.salesman, c.outstanding_balance, c.empty_bottles_balance FROM customers c WHERE c.status='Active' $salesman_only ORDER BY c.customer_name");
 
 // Get active products with stock
-$products_list = mysqli_query($conn, "SELECT id, product_name, purchase_price, sale_price, current_stock, track_empty_bottles FROM products WHERE status='Active' AND current_stock > 0 ORDER BY product_name");
+$products_list = mysqli_query($conn, "SELECT id, product_code, product_name, purchase_price, sale_price, current_stock, track_empty_bottles FROM products WHERE status='Active' AND current_stock > 0 ORDER BY product_name");
 
 // Get today's sales summary
 $today_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(total_amount),0) as total, COALESCE(SUM(bottles_delivered),0) as bottles FROM water_deliveries WHERE DATE(delivery_datetime)=CURDATE()"));
 
 // Get current stock info for all products
-$products_stock = mysqli_query($conn, "SELECT id, product_name, current_stock, min_stock_level, sale_price FROM products WHERE status='Active' ORDER BY product_name");
+$products_stock = mysqli_query($conn, "SELECT id, product_code, product_name, current_stock, min_stock_level, sale_price FROM products WHERE status='Active' ORDER BY product_name");
+
+// Build salesman (user) lookup: full_name => user id
+$salesman_user_map = [];
+$users_res = mysqli_query($conn, "SELECT id, full_name FROM users");
+if ($users_res) {
+    while ($u = mysqli_fetch_assoc($users_res)) {
+        $salesman_user_map[$u['full_name']] = $u['id'];
+    }
+}
 ?>
 <?php include '../includes/header.php'; ?>
 <?php include '../includes/sidebar.php'; ?>
@@ -318,6 +330,15 @@ body {
                 </div>
                 <div class="card-body">
                     <form method="POST" id="deliveryForm">
+                        <!-- Sale Voucher Number (auto-generated, shown at entry) -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold mb-1">Sale Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="fas fa-file-invoice text-muted"></i></span>
+                                <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_sls_voucher); ?>" readonly style="color:#A04657;">
+                            </div>
+                            <small class="text-muted">This voucher number will be recorded with this sale invoice</small>
+                        </div>
                         <!-- Customer Section -->
                         <div class="form-section-title">
                             <i class="fas fa-user me-2"></i> Customer
@@ -405,18 +426,19 @@ body {
 
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Product <span class="text-danger">*</span></label>
+                                <label class="form-label fw-semibold">Product <span class="text-danger">*</span> <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill" id="selectedProductCode" style="display:none;"></span></label>
                                 <select name="product_id" id="productId" class="form-select" required onchange="updateProductInfo()">
                                     <option value="">-- Select Product --</option>
                                     <?php 
                                     mysqli_data_seek($products_list, 0);
                                     while($p = mysqli_fetch_assoc($products_list)): ?>
                                         <option value="<?php echo $p['id']; ?>" 
+                                                data-code="<?php echo htmlspecialchars($p['product_code']); ?>"
                                                 data-price="<?php echo $p['sale_price']; ?>" 
                                                 data-stock="<?php echo $p['current_stock']; ?>"
                                                 data-track-empty="<?php echo !empty($p['track_empty_bottles']) ? 1 : 0; ?>"
                                                 data-name="<?php echo htmlspecialchars($p['product_name']); ?>">
-                                            <?php echo htmlspecialchars($p['product_name']); ?> — Cost: Rs <?php echo number_format($p['purchase_price'], 2); ?>
+                                            <?php echo htmlspecialchars($p['product_name']); ?> [<?php echo htmlspecialchars($p['product_code']); ?>] — Cost: Rs <?php echo number_format($p['purchase_price'], 2); ?>
                                         </option>
                                     <?php endwhile; ?>
                                 </select>
@@ -534,7 +556,10 @@ body {
                                     $ratio = $ps['min_stock_level'] > 0 ? ($ps['current_stock'] / $ps['min_stock_level']) : 0;
                                 ?>
                                 <tr>
-                                    <td class="ps-4"><?php echo htmlspecialchars($ps['product_name']); ?></td>
+                                    <td class="ps-4">
+                                        <?php echo htmlspecialchars($ps['product_name']); ?>
+                                        <span class="badge bg-light text-dark border rounded-pill ms-1"><?php echo htmlspecialchars($ps['product_code']); ?></span>
+                                    </td>
                                     <td class="text-center fw-bold"><?php echo number_format($ps['current_stock']); ?></td>
                                     <td class="text-center">
                                         <?php if($ps['current_stock'] == 0): ?>
@@ -568,6 +593,7 @@ while($c = mysqli_fetch_assoc($customers_list)){
         'name' => htmlspecialchars($c['customer_name'], ENT_QUOTES),
         'mobile' => htmlspecialchars($c['mobile'] ?? '', ENT_QUOTES),
         'salesman' => htmlspecialchars($c['salesman'] ?? '', ENT_QUOTES),
+        'salesman_id' => $salesman_user_map[$c['salesman'] ?? ''] ?? '',
         'outstanding' => floatval($c['outstanding_balance'] ?? 0),
         'empties' => floatval($c['empty_bottles_balance'] ?? 0),
     ];
@@ -587,6 +613,7 @@ const selectedCustomerInfo = document.getElementById('selectedCustomerInfo');
 const displayCustomerName = document.getElementById('displayCustomerName');
 const displayCustomerMobile = document.getElementById('displayCustomerMobile');
 const productSelect = document.getElementById('productId');
+const selectedProductCodeEl = document.getElementById('selectedProductCode');
 const bottleRateInput = document.getElementById('bottleRate');
 const bottlesInput = document.getElementById('bottlesDelivered');
 const totalDisplaySpan = document.getElementById('totalDisplay');
@@ -654,7 +681,8 @@ function updateCustomerInfo() {
     if(selectedCustomer) {
         displayCustomerName.innerText = selectedCustomer.name + ' [' + (selectedCustomer.code || '') + ']';
         displayCustomerMobile.innerText = 'Mobile: ' + selectedCustomer.mobile;
-        document.getElementById('displaySalesman').innerText = selectedCustomer.salesman || '-';
+        const sm = selectedCustomer.salesman || '-';
+        document.getElementById('displaySalesman').innerText = sm === '-' ? sm : (sm + (selectedCustomer.salesman_id ? ' [' + selectedCustomer.salesman_id + ']' : ''));
         currentCustomerOutstanding = selectedCustomer.outstanding || 0;
         displayPrevBalance.innerText = 'Rs ' + currentCustomerOutstanding.toFixed(2);
         document.getElementById('displayEmptyBottles').innerText = selectedCustomer.empties || 0;
@@ -685,6 +713,9 @@ function updateProductInfo() {
         currentProductTrackEmpty = selectedOption.getAttribute('data-track-empty') === '1';
         
         bottleRateInput.value = currentProductPrice;
+
+        selectedProductCodeEl.textContent = 'ID: ' + (selectedOption.getAttribute('data-code') || '');
+        selectedProductCodeEl.style.display = '';
         
         toggleEmptyReturned();
         validateStock();
@@ -694,6 +725,8 @@ function updateProductInfo() {
         currentProductPrice = 0;
         currentProductTrackEmpty = true;
         bottleRateInput.value = 0;
+        selectedProductCodeEl.textContent = '';
+        selectedProductCodeEl.style.display = 'none';
         toggleEmptyReturned();
         calculateTotal();
     }

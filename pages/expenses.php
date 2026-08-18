@@ -5,6 +5,9 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 $success = '';
 $error = '';
 
+// Next auto-generated expense voucher (shown on Add Expense form)
+$next_exp_voucher = generate_voucher_no($conn, 'expenses', 'voucher_no', 'EXP-');
+
 function recalcCashbook() {
     global $conn;
     $entries = mysqli_query($conn, "SELECT id, transaction_type, amount FROM cashbook ORDER BY id ASC");
@@ -27,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_expense'])) {
 
     $cat = mysqli_fetch_assoc(mysqli_query($conn, "SELECT category_name FROM expense_categories WHERE id=$category_id"));
     $category_name = $cat['category_name'] ?? '';
-    $voucher_no = generate_voucher_no($conn, 'expenses', 'voucher_no', 'EXP-');
+    $voucher_no = !empty($_POST['voucher_no']) ? mysqli_real_escape_string($conn, $_POST['voucher_no']) : generate_voucher_no($conn, 'expenses', 'voucher_no', 'EXP-');
 
     $query = "INSERT INTO expenses (voucher_no, expense_date, expense_category, description, amount, payment_method, receipt_no, created_by, created_datetime) 
               VALUES ('$voucher_no', '$expense_date', $category_id, '$description', $amount, '$payment_method', '$receipt_no', {$_SESSION['admin_id']}, '$datetime')";
@@ -88,11 +91,14 @@ if (isset($_GET['msg']) && $_GET['msg'] == 'deleted') $success = "Expense delete
 $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : date('Y-m-01');
 $to_date = isset($_GET['to_date']) ? $_GET['to_date'] : date('Y-m-d');
 $category_filter = isset($_GET['category']) ? intval($_GET['category']) : 0;
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 
 $where = "WHERE DATE(e.expense_date) BETWEEN '$from_date' AND '$to_date'";
 if($category_filter > 0) $where .= " AND e.expense_category = $category_filter";
+$where_list = $where;
+if($search) $where_list .= " AND (e.voucher_no LIKE '%$search%' OR e.description LIKE '%$search%' OR e.receipt_no LIKE '%$search%' OR e.payment_method LIKE '%$search%' OR c.category_name LIKE '%$search%')";
 
-$expenses = mysqli_query($conn, "SELECT e.*, c.category_name FROM expenses e LEFT JOIN expense_categories c ON e.expense_category = c.id $where ORDER BY e.expense_date DESC, e.id DESC");
+$expenses = mysqli_query($conn, "SELECT e.*, c.category_name FROM expenses e LEFT JOIN expense_categories c ON e.expense_category = c.id $where_list ORDER BY e.expense_date DESC, e.id DESC");
 $categories = mysqli_query($conn, "SELECT * FROM expense_categories ORDER BY category_name");
 $total_expenses = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(e.amount),0) as total FROM expenses e $where"))['total'];
 $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt FROM expenses e $where"))['cnt'];
@@ -173,15 +179,15 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
     <div class="card shadow-sm border-0 rounded-4 mb-4 no-print">
         <div class="card-body p-4">
             <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i> From Date</label>
                     <input type="date" name="from_date" class="form-control" value="<?php echo $from_date; ?>">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i> To Date</label>
                     <input type="date" name="to_date" class="form-control" value="<?php echo $to_date; ?>">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold"><i class="fas fa-tags me-1"></i> Category</label>
                     <select name="category" class="form-select">
                         <option value="0">All Categories</option>
@@ -191,6 +197,10 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
                             </option>
                         <?php endwhile; ?>
                     </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Voucher #, description, receipt #..." value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-secondary flex-fill" style="height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">
@@ -312,6 +322,14 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
             </div>
             <form method="POST">
                 <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-file-invoice text-muted"></i></span>
+                            <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_exp_voucher); ?>" readonly style="color:#A04657;">
+                        </div>
+                        <small class="text-muted">This voucher number will be recorded with this expense</small>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Expense Date *</label>
                         <input type="datetime-local" name="expense_date" class="form-control" required value="<?php echo date('Y-m-d\TH:i'); ?>">
@@ -481,7 +499,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
             </thead>
             <tbody>
                 <?php
-                $print_expenses = mysqli_query($conn, "SELECT e.*, c.category_name FROM expenses e LEFT JOIN expense_categories c ON e.expense_category = c.id $where ORDER BY e.expense_date DESC, e.id DESC");
+                $print_expenses = mysqli_query($conn, "SELECT e.*, c.category_name FROM expenses e LEFT JOIN expense_categories c ON e.expense_category = c.id $where_list ORDER BY e.expense_date DESC, e.id DESC");
                 $sno = 1;
                 $print_total = 0;
                 if($print_expenses && mysqli_num_rows($print_expenses) > 0):

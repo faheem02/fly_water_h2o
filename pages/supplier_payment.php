@@ -6,6 +6,9 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 $success = '';
 $error = '';
 
+// Next auto-generated payment voucher (shown on Make Payment form)
+$next_pay_voucher = generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
+
 function recalcCashbook() {
     global $conn;
     $entries = mysqli_query($conn, "SELECT id, transaction_type, amount FROM cashbook ORDER BY id ASC");
@@ -34,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_payment'])) {
     } else {
         mysqli_begin_transaction($conn);
         try {
-            $voucher_no = generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
+            $voucher_no = !empty($_POST['voucher_no']) ? mysqli_real_escape_string($conn, $_POST['voucher_no']) : generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
 
             $payment_query = "INSERT INTO supplier_payments (voucher_no, supplier_id, purchase_id, payment_amount, payment_type, cheque_no, notes, payment_datetime, created_datetime) 
                               VALUES ('$voucher_no', $supplier_id, " . ($purchase_id ? $purchase_id : "NULL") . ", $amount, '$payment_type', '$cheque_no', '$notes', '$datetime', '$datetime')";
@@ -155,7 +158,7 @@ $to_date = isset($_GET['to_date']) ? trim($_GET['to_date']) : '';
 $filter_conditions = [];
 if($search !== '') {
     $s = mysqli_real_escape_string($conn, $search);
-    $filter_conditions[] = "(p.voucher_no LIKE '%$s%' OR s.supplier_name LIKE '%$s%' OR s.mobile LIKE '%$s%' OR p.notes LIKE '%$s%')";
+    $filter_conditions[] = "(p.voucher_no LIKE '%$s%' OR s.supplier_name LIKE '%$s%' OR s.supplier_code LIKE '%$s%' OR s.mobile LIKE '%$s%' OR p.notes LIKE '%$s%')";
 }
 if($from_date !== '') {
     $fd = mysqli_real_escape_string($conn, $from_date);
@@ -193,10 +196,11 @@ while($p = mysqli_fetch_assoc($payments_reset)) {
 }
 
 $suppliersData = [];
-$suppliers_reset = mysqli_query($conn, "SELECT id, supplier_name, mobile, current_balance FROM suppliers WHERE status='Active' ORDER BY supplier_name");
+$suppliers_reset = mysqli_query($conn, "SELECT id, supplier_code, supplier_name, mobile, current_balance FROM suppliers WHERE status='Active' ORDER BY supplier_name");
 while($s = mysqli_fetch_assoc($suppliers_reset)) {
     $suppliersData[] = [
         'id'      => intval($s['id']),
+        'code'    => $s['supplier_code'] ?? '',
         'name'    => $s['supplier_name'],
         'mobile'  => $s['mobile'],
         'balance' => floatval($s['current_balance'])
@@ -512,16 +516,25 @@ while($cp = mysqli_fetch_assoc($credit_purchases_result)) {
             </div>
             <div class="modal-body p-4">
                 <form method="POST" class="payment-form" id="paymentForm">
+                    <!-- Voucher Number (auto-generated, shown at entry) -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-hashtag me-1"></i> Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-file-invoice text-muted"></i></span>
+                            <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_pay_voucher); ?>" readonly style="color:#A04657;">
+                        </div>
+                        <small class="text-muted">This voucher number will be recorded with this payment</small>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label"><i class="fas fa-truck me-1"></i> Select Supplier <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text" id="supplierSearch" class="form-control" placeholder="Search supplier by name or mobile..." autocomplete="off">
+                            <input type="text" id="supplierSearch" class="form-control" placeholder="Search supplier by name, ID or mobile..." autocomplete="off">
                         </div>
                         <select name="supplier_id" id="supplierId" class="form-select mt-2" required style="display:none;">
                             <option value="">-- Select Supplier --</option>
                             <?php foreach($suppliersData as $s): ?>
-                                <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['name']); ?> - <?php echo htmlspecialchars($s['mobile']); ?></option>
+                                <option value="<?php echo $s['id']; ?>" data-code="<?php echo htmlspecialchars($s['code']); ?>"><?php echo htmlspecialchars($s['name']); ?> (<?php echo htmlspecialchars($s['code']); ?>) - <?php echo htmlspecialchars($s['mobile']); ?></option>
                             <?php endforeach; ?>
                         </select>
                         <div id="supplierSuggestions" class="list-group mt-2" style="max-height: 250px; overflow-y: auto; display: none;"></div>
@@ -531,6 +544,7 @@ while($cp = mysqli_fetch_assoc($credit_purchases_result)) {
                                     <div>
                                         <i class="fas fa-truck text-success me-1"></i>
                                         <strong id="selectedSupplierName"></strong>
+                                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill ms-1" id="selectedSupplierCode"></span>
                                         <br><small class="text-muted" id="selectedSupplierMobile"></small>
                                     </div>
                                     <div>
@@ -959,6 +973,7 @@ const supplierSearch   = document.getElementById('supplierSearch');
 const suggestionsDiv   = document.getElementById('supplierSuggestions');
 const selectedSupplierDiv = document.getElementById('selectedSupplier');
 const selectedSupplierName = document.getElementById('selectedSupplierName');
+const selectedSupplierCode = document.getElementById('selectedSupplierCode');
 const selectedSupplierMobile = document.getElementById('selectedSupplierMobile');
 const selectedBalance   = document.getElementById('selectedBalance');
 const paymentAmount     = document.getElementById('paymentAmount');
@@ -973,14 +988,16 @@ function showSuggestions(term) {
     if(term.length < 1) { suggestionsDiv.style.display = 'none'; return; }
     const filtered = suppliers.filter(s =>
         s.name.toLowerCase().includes(term.toLowerCase()) ||
+        (s.code && s.code.toLowerCase().includes(term.toLowerCase())) ||
         (s.mobile && s.mobile.includes(term))
     );
     if(filtered.length > 0) {
         suggestionsDiv.innerHTML = filtered.map(s => `
-            <a href="#" class="list-group-item list-group-item-action" onclick="selectSupplier(${s.id}, '${escapeHtml(s.name).replace(/'/g, "\\'")}', '${escapeHtml(s.mobile)}', ${s.balance}); return false;">
+            <a href="#" class="list-group-item list-group-item-action" onclick="selectSupplier(${s.id}, '${escapeHtml(s.name).replace(/'/g, "\\'")}', '${escapeHtml(s.code || '')}', '${escapeHtml(s.mobile)}', ${s.balance}); return false;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${escapeHtml(s.name)}</strong>
+                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill">${escapeHtml(s.code || '')}</span>
                         <br><small class="text-muted">${escapeHtml(s.mobile)}</small>
                     </div>
                     <span class="badge bg-warning text-dark rounded-pill">Balance: Rs ${fmt(s.balance)}</span>
@@ -1012,11 +1029,12 @@ function populatePurchases(supplierId) {
     purchaseSelect.innerHTML = html;
 }
 
-function selectSupplier(id, name, mobile, balance) {
+function selectSupplier(id, name, code, mobile, balance) {
     supplierSelect.value = id;
     supplierSearch.value = name;
     selectedSupplierName.innerText = name;
-    selectedSupplierMobile.innerText = mobile;
+    selectedSupplierCode.innerText = code || '';
+    selectedSupplierMobile.innerText = mobile ? ('Mobile: ' + mobile) : '';
     selectedBalance.innerText = fmt(balance);
     currentBalance = balance;
     selectedSupplierDiv.style.display = 'block';

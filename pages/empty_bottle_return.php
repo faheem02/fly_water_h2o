@@ -78,7 +78,7 @@ if ($customer_id) {
             $date_condition = "AND DATE(tracking_date) <= '$to_date'";
         }
         
-        $tracking_query = "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+        $tracking_query = "SELECT bt.*, p.product_name, p.product_code, d.voucher_no FROM bottle_tracking bt 
                            LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
                            LEFT JOIN products p ON d.product_id = p.id 
                            WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC";
@@ -354,7 +354,12 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                             <i class="fas fa-user-circle fa-3x" style="color: #A04657;"></i>
                         </div>
                         <div>
-                            <h3 class="mb-1"><?php echo htmlspecialchars($customer_name); ?></h3>
+                            <h3 class="mb-1">
+                                <?php echo htmlspecialchars($customer_name); ?>
+                                <?php if(!empty($customer_code)): ?>
+                                    <span class="badge bg-success-subtle text-success-emphasis rounded-pill align-middle ms-1"><?php echo htmlspecialchars($customer_code); ?></span>
+                                <?php endif; ?>
+                            </h3>
                             <p class="text-muted mb-0">
                                 <i class="fas fa-phone me-1"></i> <?php echo $customer_mobile ?: 'No mobile'; ?>
                                 <br><i class="fas fa-wine-bottle me-1"></i> Current Empty Bottles: 
@@ -470,7 +475,16 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                             <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">
                                                 <i class="fas fa-wine-bottle me-1"></i>
                                                 <?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?>
+                                                <?php if(!empty($t['product_code'])): ?>
+                                                    <span class="opacity-75 ms-1">[<?php echo htmlspecialchars($t['product_code']); ?>]</span>
+                                                <?php endif; ?>
                                             </span>
+                                            <?php if(!empty($t['voucher_no'])): ?>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-file-invoice me-1"></i> Voucher: <strong><?php echo htmlspecialchars($t['voucher_no']); ?></strong>
+                                                </small>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="text-center">
                                             <?php if($t['bottles_delivered'] > 0): ?>
@@ -865,7 +879,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                 <?php
                 $print_history_rows = [];
                 if($customer_id && $customer_name) {
-                    $print_tracking = mysqli_query($conn, "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+                    $print_tracking = mysqli_query($conn, "SELECT bt.*, p.product_name, p.product_code, d.voucher_no FROM bottle_tracking bt 
                                                             LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
                                                             LEFT JOIN products p ON d.product_id = p.id 
                                                             WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC");
@@ -888,7 +902,10 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                 ?>
                     <tr>
                         <td><?php echo date('d-m-Y h:i A', strtotime($t['tracking_date'])); ?></td>
-                        <td><?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?></td>
+                        <td><?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?>
+                            <?php if(!empty($t['product_code'])): ?> [<?php echo htmlspecialchars($t['product_code']); ?>]<?php endif; ?>
+                            <?php if(!empty($t['voucher_no'])): ?><br><small>Voucher: <?php echo htmlspecialchars($t['voucher_no']); ?></small><?php endif; ?>
+                        </td>
                         <td class="text-end"><?php echo $t['bottles_delivered'] > 0 ? $t['bottles_delivered'] : '—'; ?></td>
                         <td class="text-end"><?php echo $t['bottles_returned'] > 0 ? $t['bottles_returned'] : '—'; ?></td>
                         <td class="text-end"><?php echo ($t['bottles_broken'] ?? 0) > 0 ? ($t['bottles_broken'] ?? 0) : '—'; ?></td>

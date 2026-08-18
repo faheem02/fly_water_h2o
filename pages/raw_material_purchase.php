@@ -6,12 +6,15 @@ $message = '';
 $error = '';
 $success = '';
 
+// Next auto-generated purchase voucher (shown on New Purchase form)
+$next_purchase_voucher = generate_voucher_no($conn, 'raw_material_purchases', 'voucher_no', 'PUR-');
+
 // Get suppliers for dropdown
 $suppliers_query = "SELECT id, supplier_code, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name";
 $suppliers_result = mysqli_query($conn, $suppliers_query);
 
 // Get materials with purchase prices
-$materials_query = "SELECT id, material_name, unit, purchase_price FROM raw_materials WHERE status = 'Active' ORDER BY material_name";
+$materials_query = "SELECT id, material_code, material_name, unit, purchase_price FROM raw_materials WHERE status = 'Active' ORDER BY material_name";
 $materials_result = mysqli_query($conn, $materials_query);
 
 // Handle form submission
@@ -41,7 +44,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
         
         try {
             // Generate system voucher numbers
-            $purchase_voucher = generate_voucher_no($conn, 'raw_material_purchases', 'voucher_no', 'PUR-');
+            $purchase_voucher = !empty($_POST['purchase_voucher']) ? mysqli_real_escape_string($conn, $_POST['purchase_voucher']) : generate_voucher_no($conn, 'raw_material_purchases', 'voucher_no', 'PUR-');
             $pay_voucher = ($paid_amount > 0) ? generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-') : '';
 
             // Insert into purchases table
@@ -259,6 +262,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                 <p>Enter purchase and supplier details</p>
             </div>
             <div class="form-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Purchase Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="fas fa-file-invoice text-muted"></i></span>
+                        <input type="text" name="purchase_voucher" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_purchase_voucher); ?>" readonly style="color:#A04657;">
+                    </div>
+                    <small class="text-muted">This voucher number will be recorded with this purchase</small>
+                </div>
                 <div class="row g-4">
                     <div class="col-md-4">
                         <label class="form-label fw-semibold required-field">Supplier</label>
@@ -292,10 +303,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                 <p>Add materials being purchased</p>
             </div>
             <div class="form-body">
-                <div class="text-end mb-3">
-                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="addItemRow()">
-                        <i class="fas fa-plus-circle me-2"></i> Add Item
-                    </button>
+                <div class="row g-2 align-items-center mb-3">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="materialSearch" class="form-control" placeholder="Search material by name or ID..." onkeyup="filterMaterials()">
+                        </div>
+                        <small class="text-muted mt-1 d-block">Type a material name or its 5-digit ID to quickly find it in the item rows below.</small>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="addItemRow()">
+                            <i class="fas fa-plus-circle me-2"></i> Add Item
+                        </button>
+                    </div>
                 </div>
                 <div id="itemsContainer">
                     <!-- Items will be added here dynamically -->
@@ -419,7 +439,7 @@ function addItemRow(material_id = '', quantity = '', unit_price = '') {
     let materialOptions = '<option value="">Select Material</option>';
     materials.forEach(material => {
         const selected = material.id == material_id ? 'selected' : '';
-        materialOptions += `<option value="${material.id}" data-price="${material.purchase_price}" ${selected}>${material.material_name} (${material.unit}) - Purchase Price: Rs ${parseFloat(material.purchase_price).toFixed(2)}</option>`;
+        materialOptions += `<option value="${material.id}" data-price="${material.purchase_price}" ${selected}>[${material.material_code}] ${material.material_name} (${material.unit}) - Purchase Price: Rs ${parseFloat(material.purchase_price).toFixed(2)}</option>`;
     });
     
     rowDiv.innerHTML = `
@@ -466,6 +486,18 @@ function removeItemRow(id) {
     const row = document.getElementById(`item_${id}`);
     if(row) row.remove();
     calculateTotal();
+}
+
+// Filter material options (by name or 5-digit ID) across all item rows
+function filterMaterials() {
+    const term = document.getElementById('materialSearch').value.toLowerCase();
+    const selects = document.querySelectorAll('#itemsContainer select[name="material_id[]"]');
+    selects.forEach(sel => {
+        [...sel.options].forEach(opt => {
+            const text = opt.textContent.toLowerCase();
+            opt.style.display = (opt.value === '' || !term || text.includes(term)) ? '' : 'none';
+        });
+    });
 }
 
 function calculateTotal() {

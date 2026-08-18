@@ -2,6 +2,9 @@
 require_once '../includes/db.php';
 if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
+// Next auto-generated 5-digit supplier ID (shown on Add form modal)
+$next_supplier_code = generate_5digit_code($conn, 'suppliers', 'supplier_code');
+
 $message = '';
 $error = '';
 $success = '';
@@ -326,6 +329,14 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
             <form method="POST" action="add_supplier.php">
                 <div class="modal-body p-4">
                     <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Supplier ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                                <input type="text" name="supplier_code" class="form-control" value="<?php echo htmlspecialchars($next_supplier_code); ?>" readonly>
+                            </div>
+                            <small class="text-muted">This 5-digit ID is auto-generated</small>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Supplier Name *</label>
                             <input type="text" name="supplier_name" class="form-control" placeholder="Enter supplier name" required>

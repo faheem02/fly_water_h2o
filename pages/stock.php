@@ -5,6 +5,9 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 $success = '';
 $error = '';
 
+// Next auto-generated 5-digit product ID (shown on Add Product form)
+$next_product_code = generate_5digit_code($conn, 'products', 'product_code');
+
 // Handle Add New Product with Purchase Price
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
     $product_name = mysqli_real_escape_string($conn, $_POST['product_name']);
@@ -30,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
 
         $success = "Product \"" . htmlspecialchars($existing['product_name']) . "\" already existed. Added " . number_format($opening_stock) . " bottles to its stock. New stock level: " . number_format($new_stock) . " bottles!";
     } else {
-        $product_code = generate_5digit_code($conn, 'products', 'product_code');
+        $product_code = !empty($_POST['product_code']) ? mysqli_real_escape_string($conn, $_POST['product_code']) : generate_5digit_code($conn, 'products', 'product_code');
         $min_level = isset($_POST['min_stock_level']) ? intval($_POST['min_stock_level']) : 10;
         $insert_query = "INSERT INTO products (product_code, product_name, purchase_price, sale_price, current_stock, min_stock_level, track_empty_bottles, status, created_datetime) 
                          VALUES ('$product_code', '$product_name', $purchase_price, 0, $opening_stock, $min_level, $track_empty, 'Active', '$datetime')";
@@ -402,6 +405,14 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
             <form method="POST">
                 <div class="modal-body p-4">
                     <div class="mb-3">
+                        <label class="form-label">Product ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                            <input type="text" name="product_code" class="form-control" value="<?php echo htmlspecialchars($next_product_code); ?>" readonly>
+                        </div>
+                        <small class="text-muted">This 5-digit ID is auto-generated for this product</small>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Product Name *</label>
                         <input type="text" name="product_name" class="form-control" required placeholder="e.g., 20 Liter Water Bottle">
                     </div>
@@ -458,7 +469,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                             $prod_query = mysqli_query($conn, "SELECT * FROM products WHERE status='Active' ORDER BY product_name");
                             if($prod_query && mysqli_num_rows($prod_query) > 0):
                                 while($p = mysqli_fetch_assoc($prod_query)): ?>
-                                    <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['product_name']); ?> (Purchase: Rs <?php echo number_format($p['purchase_price'], 2); ?> | Stock: <?php echo number_format($p['current_stock']); ?> bottles)</option>
+                                    <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['product_name']); ?> [<?php echo htmlspecialchars($p['product_code']); ?>] (Purchase: Rs <?php echo number_format($p['purchase_price'], 2); ?> | Stock: <?php echo number_format($p['current_stock']); ?> bottles)</option>
                             <?php 
                                 endwhile;
                             else: ?>
@@ -502,7 +513,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                             $prod_query2 = mysqli_query($conn, "SELECT * FROM products WHERE status='Active' ORDER BY product_name");
                             if($prod_query2 && mysqli_num_rows($prod_query2) > 0):
                                 while($p = mysqli_fetch_assoc($prod_query2)): ?>
-                                    <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['product_name']); ?> (Purchase: Rs <?php echo number_format($p['purchase_price'], 2); ?> | Stock: <?php echo number_format($p['current_stock']); ?> bottles)</option>
+                                    <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['product_name']); ?> [<?php echo htmlspecialchars($p['product_code']); ?>] (Purchase: Rs <?php echo number_format($p['purchase_price'], 2); ?> | Stock: <?php echo number_format($p['current_stock']); ?> bottles)</option>
                             <?php 
                                 endwhile;
                             endif; 

@@ -5,6 +5,9 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 $success = '';
 $error = '';
 
+// Next auto-generated 5-digit category ID (shown on Add Category form)
+$next_category_code = generate_5digit_code($conn, 'expense_categories', 'category_code');
+
 // Handle Add Category
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_category'])) {
     $category_name = mysqli_real_escape_string($conn, $_POST['category_name']);
@@ -13,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_category'])) {
     if(trim($category_name) == '') {
         $error = "Category name is required.";
     } else {
-        $category_code = generate_5digit_code($conn, 'expense_categories', 'category_code');
+        $category_code = !empty($_POST['category_code']) ? mysqli_real_escape_string($conn, $_POST['category_code']) : generate_5digit_code($conn, 'expense_categories', 'category_code');
         mysqli_query($conn, "INSERT INTO expense_categories (category_code, category_name, description, created_datetime) VALUES ('$category_code', '$category_name', '$description', '$datetime')");
         $success = "Category added successfully!";
     }
@@ -172,6 +175,14 @@ $categories = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM expenses e 
             </div>
             <form method="POST">
                 <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Category ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                            <input type="text" name="category_code" class="form-control" value="<?php echo htmlspecialchars($next_category_code); ?>" readonly>
+                        </div>
+                        <small class="text-muted">This 5-digit ID is auto-generated for this category</small>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Category Name *</label>
                         <input type="text" name="category_name" class="form-control" placeholder="e.g., Fuel, Electricity..." required>

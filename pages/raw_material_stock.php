@@ -4,6 +4,12 @@ if (!isset($_SESSION['admin_logged_in'])) header("Location: ../login.php");
 
 $message = '';
 
+// Search filter (by material name, ID or unit)
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+
+// Next auto-generated 5-digit material ID (shown on Add Raw Material form)
+$next_material_code = generate_5digit_code($conn, 'raw_materials', 'material_code');
+
 // Handle opening stock entry
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_opening_stock'])){
     $material_name = mysqli_real_escape_string($conn, $_POST['material_name']);
@@ -12,7 +18,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_opening_stock'])){
     $sale_price = floatval($_POST['sale_price']);
     $opening_stock = floatval($_POST['opening_stock']);
     $min_stock_level = floatval($_POST['min_stock_level']);
-    $material_code = generate_5digit_code($conn, 'raw_materials', 'material_code');
+    $material_code = !empty($_POST['material_code']) ? mysqli_real_escape_string($conn, $_POST['material_code']) : generate_5digit_code($conn, 'raw_materials', 'material_code');
     
     $query = "INSERT INTO raw_materials (material_code, material_name, unit, purchase_price, sale_price, current_stock, opening_stock, min_stock_level, status, created_datetime) 
               VALUES ('$material_code', '$material_name', '$unit', $purchase_price, $sale_price, $opening_stock, $opening_stock, $min_stock_level, 'Active', NOW())";
@@ -82,7 +88,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_prices'])){
 }
 
 // Get all raw materials
-$query = "SELECT * FROM raw_materials ORDER BY material_name";
+$query = "SELECT * FROM raw_materials WHERE 1=1";
+if($search) {
+    $query .= " AND (material_name LIKE '%$search%' OR material_code LIKE '%$search%' OR unit LIKE '%$search%')";
+}
+$query .= " ORDER BY material_name";
 $result = mysqli_query($conn, $query);
 
 // Statistics
@@ -254,6 +264,28 @@ mysqli_data_seek($result, 0);
                     <i class="fas fa-exclamation-triangle"></i>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Search Filter Card -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-4">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search Material</label>
+                    <input type="text" name="search" class="form-control" placeholder="Material name or ID..." value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 flex-fill">
+                            <i class="fas fa-search me-2"></i> Search
+                        </button>
+                        <a href="raw_material_stock.php" class="btn btn-secondary rounded-pill px-4">
+                            <i class="fas fa-undo me-2"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -483,6 +515,14 @@ mysqli_data_seek($result, 0);
             <form method="POST">
                 <div class="modal-body p-4">
                     <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Material ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                                <input type="text" name="material_code" class="form-control" value="<?php echo htmlspecialchars($next_material_code); ?>" readonly>
+                            </div>
+                            <small class="text-muted">This 5-digit ID is auto-generated for this material</small>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Material Name *</label>
                             <input type="text" name="material_name" class="form-control" placeholder="Enter material name" required>

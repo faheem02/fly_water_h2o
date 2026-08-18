@@ -98,9 +98,15 @@ $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : '';
 $to_date = isset($_GET['to_date']) ? $_GET['to_date'] : '';
 $from_dt = $from_date ? $from_date . ' 00:00:00' : '';
 $to_dt = $to_date ? $to_date . ' 23:59:59' : '';
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
 
 $where = "WHERE 1=1";
 if($from_dt && $to_dt) $where .= " AND transaction_date >= '$from_dt' AND transaction_date <= '$to_dt'";
+
+$where_list = $where;
+if($search) {
+    $where_list .= " AND (cb.description LIKE '%$search%' OR cb.transaction_type LIKE '%$search%' OR cp.voucher_no LIKE '%$search%' OR sp.voucher_no LIKE '%$search%' OR ex.voucher_no LIKE '%$search%')";
+}
 
 $cashbook = mysqli_query($conn, "SELECT cb.*, 
     CASE 
@@ -113,7 +119,7 @@ $cashbook = mysqli_query($conn, "SELECT cb.*,
     LEFT JOIN customer_payments cp ON cp.id = cb.reference_id AND cb.reference_type = 'payment'
     LEFT JOIN supplier_payments sp ON sp.id = cb.reference_id AND cb.reference_type = 'supplier_payment'
     LEFT JOIN expenses ex ON ex.id = cb.reference_id AND cb.reference_type = 'expense'
-    $where ORDER BY cb.transaction_date ASC, cb.id ASC");
+    $where_list ORDER BY cb.transaction_date ASC, cb.id ASC");
 
 // Summary
 $total_inflow = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(amount),0) as total FROM cashbook $where AND transaction_type='income'"))['total'];
@@ -245,6 +251,10 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
                 <div class="col-md-3">
                     <label class="form-label fw-semibold"><i class="fas fa-calendar-alt me-1"></i> To Date</label>
                     <input type="date" name="to_date" class="form-control" value="<?php echo $to_date; ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search</label>
+                    <input type="text" name="search" class="form-control" placeholder="Voucher #, description, type..." value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-secondary flex-fill" style="height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">

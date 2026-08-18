@@ -9,6 +9,9 @@ $salesman_only = $is_salesman_user ? ' AND ' . salesman_match_condition($conn) :
 
 $message = '';
 
+// Next auto-generated 5-digit customer ID (shown on Add form)
+$next_customer_code = generate_5digit_code($conn, 'customers', 'customer_code');
+
 // ---- DELETE Customer ----
 if (isset($_GET['delete'])) {
     $id = intval($_GET['delete']);
@@ -37,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $status = $_POST['status'];
         $datetime = date('Y-m-d H:i:s');
 
-        $customer_code = generate_5digit_code($conn, 'customers', 'customer_code');
+        $customer_code = !empty($_POST['customer_code']) ? mysqli_real_escape_string($conn, $_POST['customer_code']) : generate_5digit_code($conn, 'customers', 'customer_code');
         $query = "INSERT INTO customers (customer_code, customer_name, mobile, address, security_deposit, opening_balance, empty_bottles_balance, outstanding_balance, salesman, status, created_datetime) 
                   VALUES ('$customer_code', '$name', '$mobile', '$address', $deposit, $opening, $empties, $opening, '$salesman', '$status', '$datetime')";
         if (mysqli_query($conn, $query)) {
@@ -359,6 +362,14 @@ $stats = mysqli_fetch_assoc($stats_query);
             <form method="POST">
                 <div class="modal-body p-4">
                     <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Customer ID <span class="badge bg-info-subtle text-info-emphasis ms-1">Auto</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                                <input type="text" name="customer_code" class="form-control" value="<?php echo htmlspecialchars($next_customer_code); ?>" readonly>
+                            </div>
+                            <small class="text-muted">This 5-digit ID is auto-generated for this customer</small>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Full Name *</label>
                             <input type="text" name="customer_name" class="form-control" placeholder="Enter customer name" required>

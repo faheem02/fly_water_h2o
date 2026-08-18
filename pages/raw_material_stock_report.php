@@ -13,7 +13,7 @@ $query = "SELECT p.*,
           WHERE p.status = 'Active'";
 
 if($search){
-    $query .= " AND p.product_name LIKE '%$search%'";
+    $query .= " AND (p.product_name LIKE '%$search%' OR p.product_code LIKE '%$search%')";
 }
 if($stock_status == 'low'){
     $query .= " AND p.current_stock <= p.min_stock_level";
@@ -216,7 +216,7 @@ $summary = mysqli_fetch_assoc($summary_result);
             <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search Product</label>
-                    <input type="text" name="search" class="form-control" placeholder="Product name..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" name="search" class="form-control" placeholder="Product name or ID..." value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold"><i class="fas fa-chart-line me-1"></i> Stock Status</label>

@@ -8,13 +8,13 @@ $supplier_filter = isset($_GET['supplier_filter']) ? intval($_GET['supplier_filt
 $status_filter = isset($_GET['status_filter']) ? mysqli_real_escape_string($conn, $_GET['status_filter']) : '';
 
 // Build query
-$query = "SELECT p.*, s.supplier_name 
+$query = "SELECT p.*, s.supplier_name, s.supplier_code 
           FROM raw_material_purchases p 
           LEFT JOIN suppliers s ON p.supplier_id = s.id 
           WHERE 1=1";
 
 if($search){
-    $query .= " AND (s.supplier_name LIKE '%$search%' OR p.invoice_no LIKE '%$search%' OR p.voucher_no LIKE '%$search%')";
+    $query .= " AND (s.supplier_name LIKE '%$search%' OR s.supplier_code LIKE '%$search%' OR p.invoice_no LIKE '%$search%' OR p.voucher_no LIKE '%$search%')";
 }
 if($supplier_filter > 0){
     $query .= " AND p.supplier_id = $supplier_filter";
@@ -218,7 +218,7 @@ $stats = mysqli_fetch_assoc($stats_result);
             <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label fw-semibold"><i class="fas fa-search me-1"></i> Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Voucher #, supplier name or invoice..." value="<?php echo htmlspecialchars($search); ?>">
+                    <input type="text" name="search" class="form-control" placeholder="Voucher #, supplier name or ID, invoice..." value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold"><i class="fas fa-truck me-1"></i> Supplier</label>
@@ -261,7 +261,7 @@ $stats = mysqli_fetch_assoc($stats_result);
                 <table class="table table-hover purchase-table mb-0" id="purchasesTable">
                     <thead>
                         <tr>
-                            <th style="width:50px">ID</th>
+                            <th style="width:50px">Supplier ID</th>
                             <th style="min-width:100px">Voucher #</th>
                             <th style="min-width:100px">Date</th>
                             <th style="min-width:100px">Invoice #</th>
@@ -292,11 +292,15 @@ $stats = mysqli_fetch_assoc($stats_result);
                                 }
                             ?>
                                 <tr>
-                                    <td class="text-center fw-semibold"><?php echo $row['id']; ?></td>
+                                    <td class="text-center fw-semibold"><?php echo htmlspecialchars($row['supplier_code'] ?? '—'); ?></td>
                                     <td><span class="badge bg-primary-subtle text-primary-emphasis rounded-pill"><?php echo htmlspecialchars($row['voucher_no'] ?? '—'); ?></span></td>
                                     <td><?php echo date('d-m-Y', strtotime($row['purchase_date'])); ?></td>
                                     <td><?php echo htmlspecialchars($row['invoice_no'] ?? 'N/A'); ?></td>
-                                    <td><strong><?php echo htmlspecialchars($row['supplier_name']); ?></strong></td>
+                                    <td><strong><?php echo htmlspecialchars($row['supplier_name']); ?></strong>
+                                        <?php if(!empty($row['supplier_code'])): ?>
+                                            <span class="badge bg-success-subtle text-success-emphasis rounded-pill ms-1"><?php echo htmlspecialchars($row['supplier_code']); ?></span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>Rs <?php echo number_format($row['subtotal'], 2); ?></td>
                                     <td>
                                         <?php if($row['discount_percent'] > 0): ?>

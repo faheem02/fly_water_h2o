@@ -11,7 +11,7 @@ $customer_mobile = '';
 $current_empty_balance = 0;
 
 if ($customer_id) {
-    $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_name, mobile, empty_bottles_balance FROM customers WHERE id=$customer_id"));
+    $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT customer_code, customer_name, mobile, empty_bottles_balance FROM customers WHERE id=$customer_id"));
     if($cust) {
         $customer_name = $cust['customer_name'];
         $customer_mobile = $cust['mobile'];
@@ -27,7 +27,7 @@ if ($customer_id) {
             $date_condition = "AND DATE(tracking_date) <= '$to_date'";
         }
         
-        $tracking_query = "SELECT bt.*, p.product_name FROM bottle_tracking bt 
+        $tracking_query = "SELECT bt.*, p.product_name, p.product_code, d.voucher_no FROM bottle_tracking bt 
                            LEFT JOIN water_deliveries d ON bt.reference_id = d.id 
                            LEFT JOIN products p ON d.product_id = p.id 
                            WHERE bt.customer_id=$customer_id $date_condition ORDER BY bt.tracking_date DESC";
@@ -35,7 +35,7 @@ if ($customer_id) {
     }
 }
 
-$customers = mysqli_query($conn, "SELECT id, customer_name, mobile, empty_bottles_balance FROM customers WHERE status='Active' ORDER BY customer_name");
+$customers = mysqli_query($conn, "SELECT id, customer_code, customer_name, mobile, empty_bottles_balance FROM customers WHERE status='Active' ORDER BY customer_name");
 
 // Calculate summary stats
 $total_delivered = 0;
@@ -204,7 +204,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                             <option value="">-- Choose Customer --</option>
                             <?php while($c = mysqli_fetch_assoc($customers)): ?>
                                 <option value="<?php echo $c['id']; ?>" <?php echo ($customer_id == $c['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($c['customer_name']); ?> - <?php echo $c['mobile']; ?> (Empty: <?php echo $c['empty_bottles_balance']; ?>)
+                                    <?php echo htmlspecialchars($c['customer_name']); ?> [<?php echo htmlspecialchars($c['customer_code']); ?>] - <?php echo $c['mobile']; ?> (Empty: <?php echo $c['empty_bottles_balance']; ?>)
                                 </option>
                             <?php endwhile; ?>
                         </select>
@@ -232,7 +232,12 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                             <i class="fas fa-user-circle fa-3x" style="color: #A04657;"></i>
                         </div>
                         <div>
-                            <h3 class="mb-1"><?php echo htmlspecialchars($customer_name); ?></h3>
+                            <h3 class="mb-1">
+                                <?php echo htmlspecialchars($customer_name); ?>
+                                <?php if(!empty($cust['customer_code'])): ?>
+                                    <span class="badge bg-success-subtle text-success-emphasis rounded-pill align-middle ms-1"><?php echo htmlspecialchars($cust['customer_code']); ?></span>
+                                <?php endif; ?>
+                            </h3>
                             <p class="text-muted mb-0">
                                 <i class="fas fa-phone me-1"></i> <?php echo $customer_mobile ?: 'No mobile'; ?>
                                 <br><i class="fas fa-wine-bottle me-1"></i> Current Empty Bottles: 
@@ -334,7 +339,16 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                                             <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 rounded-pill">
                                                 <i class="fas fa-wine-bottle me-1"></i>
                                                 <?php echo !empty($t['product_name']) ? htmlspecialchars($t['product_name']) : '—'; ?>
+                                                <?php if(!empty($t['product_code'])): ?>
+                                                    <span class="opacity-75 ms-1">[<?php echo htmlspecialchars($t['product_code']); ?>]</span>
+                                                <?php endif; ?>
                                             </span>
+                                            <?php if(!empty($t['voucher_no'])): ?>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-file-invoice me-1"></i> Voucher: <strong><?php echo htmlspecialchars($t['voucher_no']); ?></strong>
+                                                </small>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="text-center">
                                             <?php if($t['bottles_delivered'] > 0): ?>

@@ -7,6 +7,9 @@ $message = '';
 $error = '';
 $success = '';
 
+// Next auto-generated payment voucher (shown on Add Payment form)
+$next_pay_voucher = generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
+
 // Get supplier and purchase info
 $supplier_id = isset($_GET['supplier_id']) ? intval($_GET['supplier_id']) : 0;
 $purchase_id = isset($_GET['purchase_id']) ? intval($_GET['purchase_id']) : 0;
@@ -46,8 +49,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
         mysqli_begin_transaction($conn);
         
         try {
-            // Generate system voucher number
-            $payment_voucher = generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
+            // Payment voucher (use voucher shown on form, fallback to auto-generate)
+            $payment_voucher = !empty($_POST['payment_voucher']) ? mysqli_real_escape_string($conn, $_POST['payment_voucher']) : generate_voucher_no($conn, 'supplier_payments', 'voucher_no', 'PAY-');
 
             // Insert payment record
             $payment_query = "INSERT INTO supplier_payments 
@@ -241,6 +244,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
                     </div>
                     <?php endif; ?>
                     
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-file-invoice text-muted"></i></span>
+                            <input type="text" name="payment_voucher" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_pay_voucher); ?>" readonly style="color:#A04657;">
+                        </div>
+                        <small class="text-muted">This voucher number will be recorded with this payment</small>
+                    </div>
+
                     <div class="col-md-6">
                         <label class="form-label fw-semibold required-field">Payment Amount</label>
                         <div class="input-group">

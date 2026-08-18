@@ -38,8 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_payment'])) {
         $new_outstanding = $cust['outstanding_balance'] - $amount;
         mysqli_query($conn, "UPDATE customers SET outstanding_balance = $new_outstanding WHERE id=$customer_id");
 
-        // Insert payment record
-        $voucher_no = generate_voucher_no($conn, 'customer_payments', 'voucher_no', 'RCP-');
+        // Insert payment record (use voucher shown on form, fallback to auto-generate)
+        $voucher_no = !empty($_POST['voucher_no']) ? mysqli_real_escape_string($conn, $_POST['voucher_no']) : generate_voucher_no($conn, 'customer_payments', 'voucher_no', 'RCP-');
         $payment_query = "INSERT INTO customer_payments (voucher_no, customer_id, payment_amount, payment_type, notes, payment_datetime) 
                           VALUES ('$voucher_no', $customer_id, $amount, 'Cash', '$notes', '$datetime')";
         mysqli_query($conn, $payment_query);
@@ -113,7 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_payment'])) {
 }
 
 // Get customer list with outstanding balance
-$customers = mysqli_query($conn, "SELECT id, customer_name, mobile, outstanding_balance FROM customers WHERE status='Active' ORDER BY customer_name");
+$customers = mysqli_query($conn, "SELECT id, customer_code, customer_name, mobile, outstanding_balance FROM customers WHERE status='Active' ORDER BY customer_name");
+
+// Next auto-generated payment voucher (shown on Add Payment form)
+$next_rcp_voucher = generate_voucher_no($conn, 'customer_payments', 'voucher_no', 'RCP-');
 
 // Search + date filters
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
@@ -122,7 +125,7 @@ $to_date = isset($_GET['to_date']) ? trim($_GET['to_date']) : '';
 $filter_conditions = [];
 if($search !== '') {
     $s = mysqli_real_escape_string($conn, $search);
-    $filter_conditions[] = "(p.voucher_no LIKE '%$s%' OR c.customer_name LIKE '%$s%' OR c.mobile LIKE '%$s%' OR p.notes LIKE '%$s%')";
+    $filter_conditions[] = "(p.voucher_no LIKE '%$s%' OR c.customer_name LIKE '%$s%' OR c.customer_code LIKE '%$s%' OR c.mobile LIKE '%$s%' OR p.notes LIKE '%$s%')";
 }
 if($from_date !== '') {
     $fd = mysqli_real_escape_string($conn, $from_date);
@@ -445,18 +448,27 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
             </div>
             <div class="modal-body p-4">
                 <form method="POST" class="payment-form" id="paymentForm">
+                    <!-- Voucher Number (auto-generated, shown at entry) -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="fas fa-hashtag me-1"></i> Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-file-invoice text-muted"></i></span>
+                            <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_rcp_voucher); ?>" readonly style="color:#A04657;">
+                        </div>
+                        <small class="text-muted">This voucher number will be recorded with this payment</small>
+                    </div>
                     <!-- Customer Selection with Search -->
                     <div class="mb-3">
                         <label class="form-label"><i class="fas fa-user me-1"></i> Select Customer <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text" id="customerSearch" class="form-control" placeholder="Search customer by name or mobile..." autocomplete="off">
+                            <input type="text" id="customerSearch" class="form-control" placeholder="Search customer by name, ID or mobile..." autocomplete="off">
                         </div>
                         <select name="customer_id" id="customerId" class="form-select mt-2" required style="display:none;">
                             <option value="">-- Select Customer --</option>
                             <?php while($c = mysqli_fetch_assoc($customers)): ?>
-                                <option value="<?php echo $c['id']; ?>" data-name="<?php echo htmlspecialchars($c['customer_name']); ?>" data-mobile="<?php echo $c['mobile']; ?>" data-outstanding="<?php echo $c['outstanding_balance']; ?>">
-                                    <?php echo htmlspecialchars($c['customer_name']); ?> - <?php echo $c['mobile']; ?>
+                                <option value="<?php echo $c['id']; ?>" data-code="<?php echo $c['customer_code']; ?>" data-name="<?php echo htmlspecialchars($c['customer_name']); ?>" data-mobile="<?php echo $c['mobile']; ?>" data-outstanding="<?php echo $c['outstanding_balance']; ?>">
+                                    <?php echo htmlspecialchars($c['customer_name']); ?> (<?php echo $c['customer_code']; ?>) - <?php echo $c['mobile']; ?>
                                 </option>
                             <?php endwhile; ?>
                         </select>
@@ -467,6 +479,7 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
                                     <div>
                                         <i class="fas fa-user-circle text-primary me-1"></i>
                                         <strong id="selectedCustomerName"></strong>
+                                        <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill ms-1" id="selectedCustomerCode"></span>
                                         <br><small class="text-muted" id="selectedCustomerMobile"></small>
                                     </div>
                                     <div>
@@ -609,7 +622,7 @@ let customers = [];
 
 <?php 
 $customers_array = [];
-$cust_reset = mysqli_query($conn, "SELECT id, customer_name, mobile, outstanding_balance FROM customers WHERE status='Active' ORDER BY customer_name");
+$cust_reset = mysqli_query($conn, "SELECT id, customer_code, customer_name, mobile, outstanding_balance FROM customers WHERE status='Active' ORDER BY customer_name");
 while($c = mysqli_fetch_assoc($cust_reset)) {
     $customers_array[] = $c;
 }
@@ -621,6 +634,7 @@ const customerSearch = document.getElementById('customerSearch');
 const suggestionsDiv = document.getElementById('customerSuggestions');
 const selectedCustomerDiv = document.getElementById('selectedCustomer');
 const selectedCustomerName = document.getElementById('selectedCustomerName');
+const selectedCustomerCode = document.getElementById('selectedCustomerCode');
 const selectedCustomerMobile = document.getElementById('selectedCustomerMobile');
 const selectedOutstanding = document.getElementById('selectedOutstanding');
 const paymentAmount = document.getElementById('paymentAmount');
@@ -638,15 +652,17 @@ function showSuggestions(searchTerm) {
     
     const filtered = customers.filter(c => 
         c.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (c.customer_code && c.customer_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
         c.mobile.includes(searchTerm)
     );
     
     if(filtered.length > 0) {
         suggestionsDiv.innerHTML = filtered.map(c => `
-            <a href="#" class="list-group-item list-group-item-action" onclick="selectCustomer(${c.id}, '${escapeHtml(c.customer_name)}', '${c.mobile}', ${c.outstanding_balance}); return false;">
+            <a href="#" class="list-group-item list-group-item-action" onclick="selectCustomer(${c.id}, '${escapeHtml(c.customer_name)}', '${escapeHtml(c.customer_code || '')}', '${c.mobile}', ${c.outstanding_balance}); return false;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${escapeHtml(c.customer_name)}</strong>
+                        <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">${escapeHtml(c.customer_code || '')}</span>
                         <br><small class="text-muted">${c.mobile}</small>
                     </div>
                     <span class="badge bg-warning text-dark rounded-pill">Outstanding: Rs ${parseFloat(c.outstanding_balance).toFixed(2)}</span>
@@ -676,11 +692,12 @@ function fmtOutstanding(n) {
     return 'Rs ' + n.toFixed(2);
 }
 
-function selectCustomer(id, name, mobile, outstanding) {
+function selectCustomer(id, name, code, mobile, outstanding) {
     customerSelect.value = id;
     customerSearch.value = name;
     selectedCustomerName.innerText = name;
-    selectedCustomerMobile.innerText = mobile;
+    selectedCustomerCode.innerText = code || '';
+    selectedCustomerMobile.innerText = mobile ? ('Mobile: ' + mobile) : '';
     selectedOutstanding.innerText = fmtOutstanding(outstanding);
     currentOutstanding = outstanding;
     selectedCustomerDiv.style.display = 'block';
