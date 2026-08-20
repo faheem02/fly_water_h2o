@@ -37,7 +37,20 @@ if ($customer_id) {
 
 $customers = mysqli_query($conn, "SELECT id, customer_code, customer_name, mobile, empty_bottles_balance FROM customers WHERE status='Active' ORDER BY customer_name");
 
-// Calculate summary stats
+// Calculate ALL customers summary stats
+$grand_delivered = 0;
+$grand_returned = 0;
+$grand_pending = 0;
+$grand_q = mysqli_query($conn, "SELECT COALESCE(SUM(bottles_delivered),0) AS total_del, COALESCE(SUM(bottles_returned),0) AS total_ret FROM bottle_tracking");
+if($grand_q && mysqli_num_rows($grand_q) > 0) {
+    $grand_row = mysqli_fetch_assoc($grand_q);
+    $grand_delivered = $grand_row['total_del'];
+    $grand_returned = $grand_row['total_ret'];
+}
+$grand_pending_q = mysqli_query($conn, "SELECT COALESCE(SUM(empty_bottles_balance),0) AS total FROM customers WHERE status='Active'");
+$grand_pending = mysqli_fetch_assoc($grand_pending_q)['total'];
+
+// Calculate summary stats (per customer)
 $total_delivered = 0;
 $total_returned = 0;
 $total_broken = 0;
@@ -61,7 +74,6 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     border-radius: 20px;
     border: none;
     box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    overflow: hidden;
 }
 .tracking-card .card-header {
     background: #A04657;
@@ -222,7 +234,65 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
         </div>
     </div>
 
+    <!-- All Customers Summary - Always Visible -->
+    <div class="row g-3 mb-4">
+        <div class="col-4">
+            <div style="background:#e3f2fd; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-truck" style="font-size:28px; color:#2196f3; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#1565c0; margin:4px 0;"><?php echo number_format($grand_delivered); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Delivered</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div style="background:#e8f5e9; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-undo-alt" style="font-size:28px; color:#4caf50; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#2e7d32; margin:4px 0;"><?php echo number_format($grand_returned); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Returned</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div style="background:#fce4ec; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-hourglass-half" style="font-size:28px; color:#A04657; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#A04657; margin:4px 0;"><?php echo number_format($grand_pending); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Pending Empties</small>
+            </div>
+        </div>
+    </div>
+
     <?php if($customer_id && $customer_name): ?>
+
+        <!-- Bottle Summary Stats - Top -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="bottle-stats delivered" style="background:#e3f2fd; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-truck" style="font-size:28px; color:#2196f3; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#1565c0; margin:4px 0;"><?php echo number_format($total_delivered); ?></h4>
+                    <small style="color:#666; font-weight:600;">Total Delivered</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="bottle-stats returned" style="background:#e8f5e9; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-undo-alt" style="font-size:28px; color:#4caf50; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#2e7d32; margin:4px 0;"><?php echo number_format($total_returned); ?></h4>
+                    <small style="color:#666; font-weight:600;">Total Returned</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="bottle-stats broken" style="background:#fff3e0; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-wine-bottle" style="font-size:28px; color:#ff9800; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#e65100; margin:4px 0;"><?php echo number_format($total_broken); ?></h4>
+                    <small style="color:#666; font-weight:600;">Total Broken</small>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="bottle-stats pending" style="background:#fce4ec; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-hourglass-half" style="font-size:28px; color:#A04657; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#A04657; margin:4px 0;"><?php echo number_format($current_empty_balance); ?></h4>
+                    <small style="color:#666; font-weight:600;">Pending Empties</small>
+                </div>
+            </div>
+        </div>
+
         <!-- Customer Info -->
         <div class="customer-info-card">
             <div class="row align-items-center">
@@ -232,49 +302,15 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                             <i class="fas fa-user-circle fa-3x" style="color: #A04657;"></i>
                         </div>
                         <div>
-                            <h3 class="mb-1">
+                            <h5 class="mb-1">
                                 <?php echo htmlspecialchars($customer_name); ?>
                                 <?php if(!empty($cust['customer_code'])): ?>
                                     <span class="badge bg-success-subtle text-success-emphasis rounded-pill align-middle ms-1"><?php echo htmlspecialchars($cust['customer_code']); ?></span>
                                 <?php endif; ?>
-                            </h3>
-                            <p class="text-muted mb-0">
+                            </h5>
+                            <p class="text-muted mb-0" style="font-size:13px;">
                                 <i class="fas fa-phone me-1"></i> <?php echo $customer_mobile ?: 'No mobile'; ?>
-                                <br><i class="fas fa-wine-bottle me-1"></i> Current Empty Bottles: 
-                                <strong class="text-primary"><?php echo $current_empty_balance; ?></strong>
                             </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="row g-3">
-                        <div class="col-6 col-lg-3">
-                            <div class="bottle-stats delivered">
-                                <i class="fas fa-truck"></i>
-                                <h4><?php echo number_format($total_delivered); ?></h4>
-                                <small>Total Delivered</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div class="bottle-stats returned">
-                                <i class="fas fa-undo-alt"></i>
-                                <h4><?php echo number_format($total_returned); ?></h4>
-                                <small>Total Returned</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div class="bottle-stats broken">
-                                <i class="fas fa-wine-bottle"></i>
-                                <h4><?php echo number_format($total_broken); ?></h4>
-                                <small>Total Broken</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <div class="bottle-stats pending">
-                                <i class="fas fa-hourglass-half"></i>
-                                <h4><?php echo number_format($current_empty_balance); ?></h4>
-                                <small>Current Empty Bottles</small>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -310,8 +346,11 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
 
         <!-- Bottle Movement Table -->
         <div class="card tracking-card">
-            <div class="card-header">
-                <i class="fas fa-list-alt me-2"></i> Bottle Movement History
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-list-alt me-2"></i> Bottle Movement History</span>
+                <?php if($tracking && mysqli_num_rows($tracking) > 0): ?>
+                    <span class="badge bg-white text-dark" style="font-size:12px;"><i class="fas fa-file-alt me-1"></i> <?php echo mysqli_num_rows($tracking); ?> records</span>
+                <?php endif; ?>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

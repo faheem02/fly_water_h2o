@@ -12,14 +12,26 @@ $to_dt = date('Y-m-d', strtotime($to_date)) . ' 23:59:59';
 $sales_query = mysqli_query($conn, "SELECT COALESCE(SUM(total_amount),0) AS total FROM water_deliveries WHERE delivery_datetime BETWEEN '$from_dt' AND '$to_dt'");
 $total_sales = mysqli_fetch_assoc($sales_query)['total'];
 
-$sales_by_product = mysqli_query($conn, "SELECT COALESCE(p.product_name,'Product') AS product_name, COUNT(*) AS deliveries, COALESCE(SUM(wd.bottles_delivered),0) AS bottles, COALESCE(SUM(wd.total_amount),0) AS amount
+// Sales + profit by product (purchase_price * bottles = cost, actual bottle_rate used at sale time)
+$sales_by_product = mysqli_query($conn, "SELECT COALESCE(p.product_name,'Product') AS product_name, p.purchase_price,
+    ROUND(SUM(wd.total_amount) / SUM(wd.bottles_delivered), 2) AS avg_sale_rate,
+    COUNT(*) AS deliveries,
+    COALESCE(SUM(wd.bottles_delivered),0) AS bottles,
+    COALESCE(SUM(wd.total_amount),0) AS amount,
+    COALESCE(SUM(wd.bottles_delivered * p.purchase_price),0) AS cost
     FROM water_deliveries wd LEFT JOIN products p ON wd.product_id = p.id
     WHERE wd.delivery_datetime BETWEEN '$from_dt' AND '$to_dt'
-    GROUP BY wd.product_id, p.product_name ORDER BY amount DESC");
+    GROUP BY wd.product_id, p.product_name, p.purchase_price ORDER BY amount DESC");
 
-// COGS: Raw material purchases
-$purchase_query = mysqli_query($conn, "SELECT COALESCE(SUM(total_amount),0) AS total FROM raw_material_purchases WHERE purchase_date BETWEEN '$from_dt' AND '$to_dt'");
-$total_purchases = mysqli_fetch_assoc($purchase_query)['total'];
+// COGS = sum of (purchase_price * bottles_delivered) per product
+$total_purchases = 0;
+if($sales_by_product && mysqli_num_rows($sales_by_product) > 0) {
+    mysqli_data_seek($sales_by_product, 0);
+    while($row = mysqli_fetch_assoc($sales_by_product)) {
+        $total_purchases += $row['cost'];
+    }
+    mysqli_data_seek($sales_by_product, 0);
+}
 
 // Operating expenses
 $expense_query = mysqli_query($conn, "SELECT COALESCE(SUM(amount),0) AS total FROM expenses WHERE expense_date BETWEEN '$from_date' AND '$to_date'");
@@ -44,7 +56,6 @@ $net_profit = $total_sales - $total_cost;
     border-radius: 20px;
     border: none;
     box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    overflow: hidden;
 }
 .payment-card .card-header {
     background: #A04657;
@@ -200,69 +211,89 @@ $net_profit = $total_sales - $total_cost;
                     <thead>
                         <tr>
                             <th>Particulars</th>
-                            <th class="text-end">Details (Rs)</th>
+                            <th class="text-end">Rate (Rs)</th>
+                            <th class="text-end">Qty</th>
                             <th class="text-end" style="width:150px;">Amount (Rs)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <!-- INCOME SECTION -->
                         <tr class="pl-section">
-                            <td colspan="3"><i class="fas fa-arrow-circle-down me-2"></i> Income</td>
+                            <td colspan="4"><i class="fas fa-arrow-circle-down me-2"></i> Income (Sales)</td>
                         </tr>
                         <?php if($sales_by_product && mysqli_num_rows($sales_by_product) > 0): ?>
                             <?php while($s = mysqli_fetch_assoc($sales_by_product)): ?>
                                 <tr>
-                                    <td style="padding-left: 30px;"><?php echo htmlspecialchars($s['product_name']); ?> Sales <small class="text-muted">(<?php echo number_format($s['deliveries']); ?> deliveries / <?php echo number_format($s['bottles']); ?> bottles)</small></td>
+                                    <td style="padding-left: 30px;"><?php echo htmlspecialchars($s['product_name']); ?> <small class="text-muted">(<?php echo number_format($s['deliveries']); ?> deliveries)</small></td>
+                                    <td class="text-end">Rs <?php echo number_format($s['avg_sale_rate'], 2); ?></td>
+                                    <td class="text-end"><?php echo number_format($s['bottles']); ?></td>
                                     <td class="text-end"><?php echo number_format($s['amount'], 2); ?></td>
-                                    <td></td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td style="padding-left: 30px;">Sales (Water Deliveries)</td>
-                                <td class="text-end"><?php echo number_format($total_sales, 2); ?></td>
-                                <td></td>
+                                <td style="padding-left: 30px;">No sales in this period</td>
+                                <td></td><td></td><td class="text-end">0.00</td>
                             </tr>
                         <?php endif; ?>
                         <tr class="pl-total-row">
-                            <td>Total Income</td>
+                            <td colspan="2">Total Income</td>
                             <td></td>
                             <td class="text-end text-success"><?php echo number_format($total_income, 2); ?></td>
                         </tr>
 
-                        <!-- EXPENSES SECTION -->
+                        <!-- COST OF GOODS SECTION -->
                         <tr class="pl-section">
-                            <td colspan="3"><i class="fas fa-arrow-circle-up me-2"></i> Expenses</td>
+                            <td colspan="4"><i class="fas fa-arrow-circle-up me-2"></i> Cost of Goods Sold (Purchase Price)</td>
                         </tr>
-                        <tr>
-                            <td style="padding-left: 30px;">Cost of Goods Sold <small class="text-muted">(Stock / Raw Material Purchases)</small></td>
-                            <td class="text-end"><?php echo number_format($total_purchases, 2); ?></td>
+                        <?php if($sales_by_product && mysqli_num_rows($sales_by_product) > 0): ?>
+                            <?php mysqli_data_seek($sales_by_product, 0); while($s = mysqli_fetch_assoc($sales_by_product)): ?>
+                                <tr>
+                                    <td style="padding-left: 30px;"><?php echo htmlspecialchars($s['product_name']); ?> <small class="text-muted">(<?php echo number_format($s['bottles']); ?> x Rs <?php echo number_format($s['purchase_price'], 2); ?>)</small></td>
+                                    <td class="text-end">Rs <?php echo number_format($s['purchase_price'], 2); ?></td>
+                                    <td class="text-end"><?php echo number_format($s['bottles']); ?></td>
+                                    <td class="text-end"><?php echo number_format($s['cost'], 2); ?></td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php endif; ?>
+                        <tr class="pl-total-row">
+                            <td colspan="2">Total COGS</td>
                             <td></td>
+                            <td class="text-end text-danger"><?php echo number_format($total_purchases, 2); ?></td>
+                        </tr>
+
+                        <!-- GROSS PROFIT -->
+                        <tr style="background: #e8f5e9; font-weight: 700;">
+                            <td colspan="2">GROSS PROFIT (Sales - COGS)</td>
+                            <td></td>
+                            <td class="text-end <?php echo $gross_profit >= 0 ? 'text-success' : 'text-danger'; ?>">
+                                Rs <?php echo number_format($gross_profit, 2); ?>
+                            </td>
+                        </tr>
+
+                        <!-- OPERATING EXPENSES SECTION -->
+                        <tr class="pl-section">
+                            <td colspan="4"><i class="fas fa-arrow-circle-up me-2"></i> Operating Expenses</td>
                         </tr>
                         <?php if($expenses_by_category && mysqli_num_rows($expenses_by_category) > 0): ?>
                             <?php while($e = mysqli_fetch_assoc($expenses_by_category)): ?>
                                 <tr>
-                                    <td style="padding-left: 45px;"><small class="text-muted"><?php echo htmlspecialchars($e['category_name']); ?> (<?php echo $e['count']; ?>)</small></td>
-                                    <td class="text-end"><small class="text-muted"><?php echo number_format($e['amount'], 2); ?></small></td>
-                                    <td></td>
+                                    <td style="padding-left: 30px;"><small class="text-muted"><?php echo htmlspecialchars($e['category_name']); ?> (<?php echo $e['count']; ?>)</small></td>
+                                    <td class="text-end" colspan="2"></td>
+                                    <td class="text-end"><?php echo number_format($e['amount'], 2); ?></td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php endif; ?>
-                        <tr>
-                            <td style="padding-left: 30px;">General Expenses</td>
-                            <td class="text-end"><?php echo number_format($total_expenses, 2); ?></td>
-                            <td></td>
-                        </tr>
                         <tr class="pl-total-row">
-                            <td>Total Expenses</td>
+                            <td colspan="2">Total Operating Expenses</td>
                             <td></td>
-                            <td class="text-end text-danger"><?php echo number_format($total_cost, 2); ?></td>
+                            <td class="text-end text-danger"><?php echo number_format($total_expenses, 2); ?></td>
                         </tr>
 
                         <!-- NET PROFIT -->
                         <tr class="pl-net-profit">
-                            <td><?php echo $net_profit >= 0 ? 'NET PROFIT' : 'NET LOSS'; ?></td>
-                            <td class="text-end text-muted small">(Gross Profit: Rs <?php echo number_format($gross_profit, 2); ?>)</td>
+                            <td colspan="2"><?php echo $net_profit >= 0 ? 'NET PROFIT' : 'NET LOSS'; ?></td>
+                            <td class="text-end text-muted small">Gross: <?php echo number_format($gross_profit, 2); ?></td>
                             <td class="text-end <?php echo $net_profit >= 0 ? 'text-success' : 'text-danger'; ?>">
                                 Rs <?php echo number_format($net_profit, 2); ?>
                             </td>

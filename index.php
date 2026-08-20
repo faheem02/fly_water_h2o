@@ -66,7 +66,6 @@ $collection_rate = ($total_sales > 0) ? (($total_sales - $total_outstanding) / $
 /* Dashboard Modern Styles */
 .dashboard-wrapper {
     padding: 25px 30px;
-    min-height: calc(100vh - 115px);
     background: #f5f7fb;
 }
 
@@ -125,7 +124,6 @@ $collection_rate = ($total_sales > 0) ? (($total_sales - $total_outstanding) / $
     transition: all 0.3s ease;
     border: 1px solid #f0f0f0;
     position: relative;
-    overflow: hidden;
     cursor: pointer;
 }
 
@@ -229,7 +227,6 @@ $collection_rate = ($total_sales > 0) ? (($total_sales - $total_outstanding) / $
     background: white;
     border-radius: 20px;
     border: 1px solid #f0f0f0;
-    overflow: hidden;
     height: 100%;
 }
 
@@ -484,90 +481,32 @@ $collection_rate = ($total_sales > 0) ? (($total_sales - $total_outstanding) / $
         </div>
     </div>
 
-    <!-- QUICK ACTIONS -->
+    <!-- QUICK ACTIONS - One button per section -->
     <div class="quick-actions">
         <a href="pages/customer_view.php" class="quick-btn">
-            <i class="fas fa-user-plus"></i>
-            Add Customer
+            <i class="fas fa-users"></i>
+            Customers
         </a>
         <a href="pages/deliveries.php" class="quick-btn">
             <i class="fas fa-truck"></i>
             New Delivery
         </a>
-        <a href="pages/empty_bottle_return.php" class="quick-btn">
-            <i class="fas fa-undo-alt"></i>
-            Bottle Return
-        </a>
-        <a href="pages/payments.php" class="quick-btn">
-            <i class="fas fa-receipt"></i>
-            Receive Payment
+        <a href="pages/suppliers.php" class="quick-btn">
+            <i class="fas fa-truck-loading"></i>
+            Suppliers
         </a>
         <a href="pages/stock.php" class="quick-btn">
             <i class="fas fa-boxes"></i>
-            Add Production
+            Stock
         </a>
-    </div>
-
-    <!-- STATS GRID -->
-    <div class="stats-grid">
-        
-        <!-- Total Customers -->
-        <div class="stat-card" onclick="window.location.href='pages/customer_view.php'">
-            <div class="stat-icon">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-title">Total Customers</div>
-            <div class="stat-value"><?php echo number_format($total_customers); ?></div>
-            <div class="stat-sub">Active water customers</div>
-        </div>
-
-        <!-- Total Outstanding -->
-        <div class="stat-card" onclick="window.location.href='pages/payments.php'">
-            <div class="stat-icon">
-                <i class="fas fa-rupee-sign"></i>
-            </div>
-            <div class="stat-title">Total Outstanding</div>
-            <div class="stat-value">Rs <?php echo number_format($total_outstanding, 2); ?></div>
-            <div class="stat-sub">Pending payments</div>
-            <div class="stat-badge <?php echo $collection_rate > 70 ? 'positive' : 'warning'; ?>">
-                <?php echo number_format($collection_rate, 0); ?>% collected
-            </div>
-        </div>
-
-        <!-- Today's Sales -->
-        <div class="stat-card" onclick="window.location.href='pages/deliveries.php'">
-            <div class="stat-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stat-title">Today's Sales</div>
-            <div class="stat-value">Rs <?php echo number_format($today_sales, 2); ?></div>
-            <div class="stat-sub"><?php echo number_format($today_deliveries); ?> bottles delivered</div>
-        </div>
-
-        <!-- Current Stock -->
-        <div class="stat-card" onclick="window.location.href='pages/stock.php'">
-            <div class="stat-icon">
-                <i class="fas fa-boxes"></i>
-            </div>
-            <div class="stat-title">Current Stock</div>
-            <div class="stat-value"><?php echo number_format($current_stock); ?></div>
-            <div class="stat-sub">Bottles in inventory</div>
-            <?php if($low_stock_count > 0): ?>
-                <div class="stat-badge danger">
-                    ⚠️ <?php echo $low_stock_count; ?> low stock
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Empty Bottles -->
-        <div class="stat-card" onclick="window.location.href='pages/bottle_tracking.php'">
-            <div class="stat-icon">
-                <i class="fas fa-wine-bottle"></i>
-            </div>
-            <div class="stat-title">Empty Bottles Out</div>
-            <div class="stat-value"><?php echo number_format($total_bottles_out); ?></div>
-            <div class="stat-sub"><?php echo number_format($today_returns); ?> returned today</div>
-        </div>
+        <a href="pages/expenses.php" class="quick-btn">
+            <i class="fas fa-receipt"></i>
+            Expenses
+        </a>
+        <a href="pages/reports.php" class="quick-btn">
+            <i class="fas fa-chart-bar"></i>
+            Reports
+        </a>
     </div>
 
 </div>

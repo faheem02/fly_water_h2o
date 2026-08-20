@@ -12,6 +12,7 @@ $next_product_code = generate_5digit_code($conn, 'products', 'product_code');
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
     $product_name = mysqli_real_escape_string($conn, $_POST['product_name']);
     $purchase_price = floatval($_POST['purchase_price']);
+    $sale_price = floatval($_POST['sale_price']);
     $opening_stock = intval($_POST['opening_stock']);
     $track_empty = isset($_POST['track_empty_bottles']) ? 1 : 0;
     $datetime = date('Y-m-d H:i:s');
@@ -23,8 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
         $existing = mysqli_fetch_assoc($existing_query);
         $new_stock = $existing['current_stock'] + $opening_stock;
         $new_price = ($purchase_price > 0) ? $purchase_price : $existing['purchase_price'];
+        $new_sale = ($sale_price > 0) ? $sale_price : $existing['sale_price'];
 
-        mysqli_query($conn, "UPDATE products SET current_stock = $new_stock, purchase_price = $new_price WHERE id={$existing['id']}");
+        mysqli_query($conn, "UPDATE products SET current_stock = $new_stock, purchase_price = $new_price, sale_price = $new_sale WHERE id={$existing['id']}");
 
         if($opening_stock > 0) {
             mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, quantity_in, running_stock, description, created_datetime) 
@@ -36,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
         $product_code = !empty($_POST['product_code']) ? mysqli_real_escape_string($conn, $_POST['product_code']) : generate_5digit_code($conn, 'products', 'product_code');
         $min_level = isset($_POST['min_stock_level']) ? intval($_POST['min_stock_level']) : 10;
         $insert_query = "INSERT INTO products (product_code, product_name, purchase_price, sale_price, current_stock, min_stock_level, track_empty_bottles, status, created_datetime) 
-                         VALUES ('$product_code', '$product_name', $purchase_price, 0, $opening_stock, $min_level, $track_empty, 'Active', '$datetime')";
+                         VALUES ('$product_code', '$product_name', $purchase_price, $sale_price, $opening_stock, $min_level, $track_empty, 'Active', '$datetime')";
         
         if(mysqli_query($conn, $insert_query)) {
             $product_id = mysqli_insert_id($conn);
@@ -235,6 +237,16 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 .modal-header .btn-close {
     filter: invert(1);
 }
+.dataTables_wrapper .dataTables_filter {
+    text-align: right;
+    margin-bottom: 10px;
+}
+.dataTables_wrapper .dataTables_filter input {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
 </style>
 
 <div class="main-wrapper">
@@ -424,8 +436,15 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                         </div>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Sale Price (Rs) *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rs</span>
+                            <input type="number" name="sale_price" class="form-control" step="0.01" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Opening Stock</label>
-                        <input type="number" name="opening_stock" class="form-control" value="0" placeholder="Initial stock quantity">
+                        <input type="number" name="opening_stock" class="form-control" value="" placeholder="Initial stock quantity">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Min Stock Level (Alert)</label>
@@ -791,47 +810,6 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 .print-footer { margin-top: 10px; text-align: center; font-size: 10px; color: #aaa; padding-top: 8px; border-top: 1px solid #eee; }
 </style>
 
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script>
-$(document).ready(function() {
-    <?php if($products && mysqli_num_rows($products) > 0): ?>
-    $('#stockTable').DataTable({
-        pageLength: 25,
-        order: [[1, 'asc']],
-        columnDefs: [{ targets: -1, orderable: false }],
-        language: {
-            search: "Search:",
-            lengthMenu: "Show _MENU_ entries",
-            info: "Showing _START_ to _END_ of _TOTAL_ products"
-        }
-    });
-    <?php endif; ?>
-
-    document.querySelectorAll('.editProductBtn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('edit_product_id').value = this.getAttribute('data-id');
-            document.getElementById('edit_product_name').value = this.getAttribute('data-name');
-            document.getElementById('edit_product_price').value = this.getAttribute('data-price');
-            document.getElementById('edit_product_min').value = this.getAttribute('data-min');
-            document.getElementById('edit_track_empty').checked = this.getAttribute('data-track') == '1';
-            document.getElementById('edit_product_status').value = this.getAttribute('data-status');
-            var editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
-            editModal.show();
-        });
-    });
-
-    document.querySelectorAll('.deleteProductBtn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            document.getElementById('delete_product_id').value = this.getAttribute('data-id');
-            document.getElementById('delete_product_name').textContent = this.getAttribute('data-name');
-            var deleteModal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
-            deleteModal.show();
-        });
-    });
-});
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 function printStock() {
@@ -908,3 +886,45 @@ function printStock() {
 </script>
 
 <?php include '../includes/footer.php'; ?>
+
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    <?php if($products && mysqli_num_rows($products) > 0): ?>
+    $('#stockTable').DataTable({
+        pageLength: -1,
+        order: [[1, 'asc']],
+        columnDefs: [{ targets: -1, orderable: false }],
+        dom: 'frtip',
+        language: {
+            search: "Search:",
+            info: "",
+            paginate: { previous: "", next: "" }
+        }
+    });
+    $('.dataTables_length').hide();
+    $('.dataTables_info').hide();
+    $('.dataTables_paginate').hide();
+    <?php endif; ?>
+
+    $(document).on('click', '.editProductBtn', function() {
+        document.getElementById('edit_product_id').value = this.getAttribute('data-id');
+        document.getElementById('edit_product_name').value = this.getAttribute('data-name');
+        document.getElementById('edit_product_price').value = this.getAttribute('data-price');
+        document.getElementById('edit_product_min').value = this.getAttribute('data-min');
+        document.getElementById('edit_track_empty').checked = this.getAttribute('data-track') == '1';
+        document.getElementById('edit_product_status').value = this.getAttribute('data-status');
+        var editModal = new bootstrap.Modal(document.getElementById('editProductModal'));
+        editModal.show();
+    });
+
+    $(document).on('click', '.deleteProductBtn', function() {
+        document.getElementById('delete_product_id').value = this.getAttribute('data-id');
+        document.getElementById('delete_product_name').textContent = this.getAttribute('data-name');
+        var deleteModal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+        deleteModal.show();
+    });
+});
+</script>

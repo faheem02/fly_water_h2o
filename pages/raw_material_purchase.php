@@ -172,7 +172,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
 /* Custom Form Styles */
 .form-card {
     border-radius: 20px;
-    overflow: hidden;
     box-shadow: 0 5px 20px rgba(0,0,0,0.05);
     border: none;
 }
@@ -332,11 +331,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                     <div class="row g-3 mt-2">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Discount %</label>
-                            <input type="number" name="discount_percent" id="discount_percent" class="form-control" step="0.01" value="0" onkeyup="calculateTotal()">
+                            <input type="number" name="discount_percent" id="discount_percent" class="form-control" step="0.01" value="" onkeyup="calculateTotal()">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Discount Amount (Rs)</label>
-                            <input type="number" name="discount_amount" id="discount_amount" class="form-control" step="0.01" value="0" onkeyup="calculateTotal()">
+                            <input type="number" name="discount_amount" id="discount_amount" class="form-control" step="0.01" value="" onkeyup="calculateTotal()">
                         </div>
                     </div>
                     <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle me-1"></i> Both discount % and amount can be applied together</small>
@@ -357,7 +356,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_purchase'])){
                         <div id="paymentFields" style="display: none;">
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Paid Amount (Rs)</label>
-                                <input type="number" name="paid_amount" id="paid_amount" class="form-control" step="0.01" value="0" onkeyup="updateCredit()">
+                                <input type="number" name="paid_amount" id="paid_amount" class="form-control" step="0.01" value="" onkeyup="updateCredit()">
                             </div>
                         </div>
                         

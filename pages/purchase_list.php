@@ -74,9 +74,7 @@ $stats = mysqli_fetch_assoc($stats_result);
     margin: 0 2px;
     padding: 5px 8px;
 }
-.table-responsive {
-    overflow-x: auto;
-}
+
 @media (max-width: 768px) {
     .purchase-table {
         font-size: 12px;
@@ -142,7 +140,6 @@ $stats = mysqli_fetch_assoc($stats_result);
 /* Filter Card */
 .filter-card {
     border-radius: 20px;
-    overflow: hidden;
 }
 </style>
 

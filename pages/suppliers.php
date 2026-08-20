@@ -126,9 +126,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
     margin: 0 2px;
     padding: 5px 8px;
 }
-.table-responsive {
-    overflow-x: auto;
-}
+
 @media (max-width: 768px) {
     .suppliers-table {
         font-size: 12px;
@@ -369,7 +367,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
                             <label class="form-label fw-semibold">Opening Balance</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rs</span>
-                                <input type="number" name="opening_balance" class="form-control" step="0.01" value="0">
+                                <input type="number" name="opening_balance" class="form-control" step="0.01" value="">
                             </div>
                             <small class="text-muted">Positive = Credit | Negative = Advance</small>
                         </div>

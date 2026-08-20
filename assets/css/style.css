@@ -33,10 +33,10 @@ body{
     background:#f9f9f9;
     color:var(--text);
     font-size:16px;
-    overflow-x:hidden;
+    overflow:hidden;
     display:flex;
     flex-direction:column;
-    min-height:100vh;
+    height:100vh;
 }
 
 h1,h2,h3,h4,h5,h6{
@@ -248,8 +248,10 @@ a{
 .main-content{
     margin-left:250px;
     margin-top:65px;
-    padding:25px;
+    padding:15px 20px;
     flex:1;
+    overflow-y:auto;
+    height:calc(100vh - 65px);
 }
 
 /* =========================================================

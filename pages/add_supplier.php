@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_supplier'])) {
                         <label class="form-label fw-semibold">Opening Balance</label>
                         <div class="input-group">
                             <span class="input-group-text">Rs</span>
-                            <input type="number" name="opening_balance" class="form-control" step="0.01" value="0">
+                            <input type="number" name="opening_balance" class="form-control" step="0.01" value="">
                         </div>
                         <small class="text-muted">Positive = Credit (Supplier gave us credit) | Negative = Advance (We paid advance)</small>
                     </div>

@@ -171,6 +171,9 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             
             .main-content {
                 margin-left: 0 !important;
+                padding: 15px;
+                height: calc(100vh - 65px);
+                overflow-y: auto;
             }
             
             .fixed-header {
@@ -200,8 +203,9 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             .main-content {
                 margin-left: 260px;
                 margin-top: 65px;
-                padding: 20px;
-                min-height: calc(100vh - 65px);
+                padding: 15px 20px;
+                height: calc(100vh - 65px);
+                overflow-y: auto;
             }
         }
         
@@ -319,6 +323,11 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                         <i class="fas fa-money-bill-wave"></i> Payments
                     </a>
                 </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/customer_list.php">
+                        <i class="fas fa-id-card"></i> Customer ID List
+                    </a>
+                </li>
             </ul>
         </li>
         <?php endif; ?>
@@ -374,6 +383,11 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                         <i class="fas fa-history"></i> Stock Ledger
                     </a>
                 </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/product_list.php">
+                        <i class="fas fa-id-card"></i> Product ID List
+                    </a>
+                </li>
             </ul>
         </li>
 
@@ -404,6 +418,11 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                 <li>
                     <a href="<?php echo $base_url; ?>pages/supplier_payment.php">
                         <i class="fas fa-money-bill-wave"></i> Supplier Payment
+                    </a>
+                </li>
+                <li>
+                    <a href="<?php echo $base_url; ?>pages/supplier_list.php">
+                        <i class="fas fa-id-card"></i> Supplier ID List
                     </a>
                 </li>
             </ul>

@@ -783,7 +783,7 @@ function printDeliveries() {
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-semibold">Empty Returned</label>
-                            <input type="number" name="empty_bottles_returned" id="edit_empties" class="form-control" min="0" value="0">
+                            <input type="number" name="empty_bottles_returned" id="edit_empties" class="form-control" min="0" value="">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
@@ -793,7 +793,7 @@ function printDeliveries() {
                         </div>
                         <div class="col-6">
                             <label class="form-label fw-semibold">Cash Received (Rs)</label>
-                            <input type="number" step="0.01" name="cash_received" id="edit_cash" class="form-control" min="0" value="0">
+                            <input type="number" step="0.01" name="cash_received" id="edit_cash" class="form-control" min="0" value="">
                         </div>
                     </div>
                     <div class="mb-3 mt-3">

@@ -111,7 +111,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
 /* Custom Form Styles */
 .form-card {
     border-radius: 20px;
-    overflow: hidden;
     box-shadow: 0 5px 20px rgba(0,0,0,0.05);
     border: none;
 }
@@ -134,7 +133,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_payment'])){
 }
 .info-card {
     border-radius: 16px;
-    overflow: hidden;
 }
 .info-card .card-header {
     background: linear-gradient(135deg, #A04657 0%, #c96b7e 100%);

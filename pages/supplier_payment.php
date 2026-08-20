@@ -226,7 +226,6 @@ while($cp = mysqli_fetch_assoc($credit_purchases_result)) {
     border-radius: 20px;
     border: none;
     box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    overflow: hidden;
 }
 .payment-card .card-header {
     background: #A04657;

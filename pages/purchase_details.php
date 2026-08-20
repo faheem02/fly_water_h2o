@@ -41,7 +41,6 @@ $payments_result = mysqli_query($conn, $payments_query);
 /* Custom Invoice Styles */
 .invoice-wrapper {
     background: #f8f9fa;
-    min-height: calc(100vh - 200px);
     padding: 20px 0;
 }
 .invoice-box {

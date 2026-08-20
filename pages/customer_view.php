@@ -152,9 +152,7 @@ $stats = mysqli_fetch_assoc($stats_query);
     margin: 0 2px;
     padding: 5px 8px;
 }
-.table-responsive {
-    overflow-x: auto;
-}
+
 @media (max-width: 768px) {
     .customers-table {
         font-size: 12px;
@@ -388,15 +386,15 @@ $stats = mysqli_fetch_assoc($stats_query);
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Security Deposit (Rs)</label>
-                            <input type="number" step="0.01" name="security_deposit" class="form-control" placeholder="Deposit amount" value="0">
+                            <input type="number" step="0.01" name="security_deposit" class="form-control" placeholder="Deposit amount" value="">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Opening Balance (Rs)</label>
-                            <input type="number" step="0.01" name="opening_balance" class="form-control" placeholder="If any" value="0">
+                            <input type="number" step="0.01" name="opening_balance" class="form-control" placeholder="If any" value="">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Empty Bottles Balance</label>
-                            <input type="number" name="empty_bottles_balance" class="form-control" placeholder="Number of empty bottles" value="0">
+                            <input type="number" name="empty_bottles_balance" class="form-control" placeholder="Number of empty bottles" value="">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Status</label>

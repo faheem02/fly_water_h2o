@@ -91,6 +91,19 @@ if ($search) $where_cust .= " AND (c.customer_name LIKE '%$search%' OR c.custome
 $where_cust .= $is_salesman_user ? " AND " . salesman_match_condition($conn) : '';
 $customers = mysqli_query($conn, "SELECT c.id, c.customer_code, c.customer_name, c.mobile, c.address, c.salesman, c.security_deposit, c.empty_bottles_balance, c.status FROM customers c $where_cust ORDER BY c.customer_name");
 
+// Calculate ALL customers summary stats
+$grand_delivered = 0;
+$grand_returned = 0;
+$grand_pending = 0;
+$grand_q = mysqli_query($conn, "SELECT COALESCE(SUM(bottles_delivered),0) AS total_del, COALESCE(SUM(bottles_returned),0) AS total_ret FROM bottle_tracking");
+if($grand_q && mysqli_num_rows($grand_q) > 0) {
+    $grand_row = mysqli_fetch_assoc($grand_q);
+    $grand_delivered = $grand_row['total_del'];
+    $grand_returned = $grand_row['total_ret'];
+}
+$grand_pending_q = mysqli_query($conn, "SELECT COALESCE(SUM(empty_bottles_balance),0) AS total FROM customers WHERE status='Active'");
+$grand_pending = mysqli_fetch_assoc($grand_pending_q)['total'];
+
 // Calculate summary stats
 $total_delivered = 0;
 $total_returned = 0;
@@ -113,7 +126,6 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     border-radius: 20px;
     border: none;
     box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-    overflow: hidden;
 }
 .tracking-card .card-header {
     background: #A04657;
@@ -260,6 +272,31 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
 
     <?php echo $message; ?>
 
+    <!-- Grand Summary Stats - Always Visible -->
+    <div class="row g-3 mb-4">
+        <div class="col-4">
+            <div style="background:#e3f2fd; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-truck" style="font-size:28px; color:#2196f3; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#1565c0; margin:4px 0;"><?php echo number_format($grand_delivered); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Delivered</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div style="background:#e8f5e9; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-undo-alt" style="font-size:28px; color:#4caf50; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#2e7d32; margin:4px 0;"><?php echo number_format($grand_returned); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Returned</small>
+            </div>
+        </div>
+        <div class="col-4">
+            <div style="background:#fce4ec; border-radius:15px; padding:18px 12px; text-align:center;">
+                <i class="fas fa-hourglass-half" style="font-size:28px; color:#A04657; margin-bottom:6px;"></i>
+                <h4 style="font-size:26px; font-weight:700; color:#A04657; margin:4px 0;"><?php echo number_format($grand_pending); ?></h4>
+                <small style="color:#666; font-weight:600;">Total Pending Empties</small>
+            </div>
+        </div>
+    </div>
+
     <?php if(!$customer_id): ?>
     <!-- All Customers Summary -->
     <div class="card tracking-card mb-4">
@@ -345,6 +382,32 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     <?php endif; ?>
 
     <?php if($customer_id && $customer_name): ?>
+
+        <!-- Bottle Summary Stats - Top -->
+        <div class="row g-3 mb-4">
+            <div class="col-4">
+                <div style="background:#e3f2fd; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-truck" style="font-size:28px; color:#2196f3; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#1565c0; margin:4px 0;"><?php echo number_format($total_delivered); ?></h4>
+                    <small style="color:#666; font-weight:600;">Total Delivered</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:#e8f5e9; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-undo-alt" style="font-size:28px; color:#4caf50; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#2e7d32; margin:4px 0;"><?php echo number_format($total_returned); ?></h4>
+                    <small style="color:#666; font-weight:600;">Total Returned</small>
+                </div>
+            </div>
+            <div class="col-4">
+                <div style="background:#fce4ec; border-radius:15px; padding:18px 12px; text-align:center;">
+                    <i class="fas fa-hourglass-half" style="font-size:28px; color:#A04657; margin-bottom:6px;"></i>
+                    <h4 style="font-size:26px; font-weight:700; color:#A04657; margin:4px 0;"><?php echo number_format($current_empty_balance); ?></h4>
+                    <small style="color:#666; font-weight:600;">Pending Empties</small>
+                </div>
+            </div>
+        </div>
+
         <!-- Customer Info -->
         <div class="customer-info-card">
             <div class="row align-items-center">
@@ -354,42 +417,15 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                             <i class="fas fa-user-circle fa-3x" style="color: #A04657;"></i>
                         </div>
                         <div>
-                            <h3 class="mb-1">
+                            <h5 class="mb-1">
                                 <?php echo htmlspecialchars($customer_name); ?>
                                 <?php if(!empty($customer_code)): ?>
                                     <span class="badge bg-success-subtle text-success-emphasis rounded-pill align-middle ms-1"><?php echo htmlspecialchars($customer_code); ?></span>
                                 <?php endif; ?>
-                            </h3>
-                            <p class="text-muted mb-0">
+                            </h5>
+                            <p class="text-muted mb-0" style="font-size:13px;">
                                 <i class="fas fa-phone me-1"></i> <?php echo $customer_mobile ?: 'No mobile'; ?>
-                                <br><i class="fas fa-wine-bottle me-1"></i> Current Empty Bottles: 
-                                <strong class="text-primary"><?php echo $current_empty_balance; ?></strong>
                             </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="row g-3">
-                        <div class="col-4">
-                            <div class="bottle-stats delivered">
-                                <i class="fas fa-truck"></i>
-                                <h4><?php echo number_format($total_delivered); ?></h4>
-                                <small>Total Delivered</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="bottle-stats returned">
-                                <i class="fas fa-undo-alt"></i>
-                                <h4><?php echo number_format($total_returned); ?></h4>
-                                <small>Total Returned</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="bottle-stats pending">
-                                <i class="fas fa-wine-bottle"></i>
-                                <h4><?php echo number_format($current_empty_balance); ?></h4>
-                                <small>Current Pending</small>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -626,7 +662,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     </div>
 </div>
 
-<!-- Print Overlay -->
+<!-- Print Overlay (customers summary) -->
 <div id="print-overlay">
     <div id="print-area">
         <div class="print-header">
@@ -647,6 +683,21 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
                 <?php if($search): ?>
                     <span class="print-date-range">Search: <?php echo htmlspecialchars($search); ?></span>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:16px; margin-bottom:16px;">
+            <div style="flex:1; background:#e3f2fd; border-radius:10px; padding:12px 14px; text-align:center;">
+                <div style="font-size:22px; font-weight:700; color:#1565c0;"><?php echo number_format($grand_delivered); ?></div>
+                <div style="font-size:11px; color:#666; font-weight:600;">Total Delivered</div>
+            </div>
+            <div style="flex:1; background:#e8f5e9; border-radius:10px; padding:12px 14px; text-align:center;">
+                <div style="font-size:22px; font-weight:700; color:#2e7d32;"><?php echo number_format($grand_returned); ?></div>
+                <div style="font-size:11px; color:#666; font-weight:600;">Total Returned</div>
+            </div>
+            <div style="flex:1; background:#fce4ec; border-radius:10px; padding:12px 14px; text-align:center;">
+                <div style="font-size:22px; font-weight:700; color:#A04657;"><?php echo number_format($grand_pending); ?></div>
+                <div style="font-size:11px; color:#666; font-weight:600;">Total Pending Empties</div>
             </div>
         </div>
 
@@ -694,21 +745,13 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
 </div>
 
 <style>
-#print-overlay {
+/* Screen: hide print overlays */
+#print-overlay,
+#print-overlay-history {
     display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #fff;
-    z-index: 999999;
-    overflow: auto;
 }
-#print-area {
-    width: 794px;
-    margin: 0 auto;
-    padding: 35px 40px;
+#print-area,
+#print-area-history {
     font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
     color: #222;
 }
@@ -937,106 +980,63 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
-function printCustomers() {
-    const overlay = document.getElementById('print-overlay');
-    const printArea = document.getElementById('print-area');
-    overlay.style.display = 'block';
+function doPrint(areaId, title) {
+    var content = document.getElementById(areaId).innerHTML;
+    var w = window.open('', '_blank', 'width=900,height=700');
+    w.document.open();
+    w.document.write(
+        '<!DOCTYPE html>' +
+        '<html>' +
+        '<head>' +
+        '<meta charset="UTF-8">' +
+        '<title>' + title + '</title>' +
+        '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">' +
+        '<style>' +
+        '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+        'body { font-family: Poppins, Segoe UI, Arial, sans-serif; color: #222; background: #fff; padding: 30px 35px; font-size: 12px; }' +
+        '.print-header { margin-bottom: 18px; }' +
+        '.print-brand-row { display: flex; align-items: center; gap: 16px; }' +
+        '.print-logo-circle { width: 56px; height: 56px; background: linear-gradient(135deg,#A04657,#c96b7e); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #fff; flex-shrink: 0; }' +
+        '.print-brand-text { display: flex; flex-direction: column; gap: 2px; }' +
+        '.print-owner-name { font-size: 20px; font-weight: 800; color: #222; }' +
+        '.print-company { font-size: 16px; font-weight: 700; color: #A04657; }' +
+        '.print-address { font-size: 12px; color: #666; }' +
+        '.print-phone { font-size: 13px; font-weight: 600; color: #A04657; }' +
+        '.print-divider { height: 2px; background: linear-gradient(to right,#A04657,#e0a0ab); margin: 12px 0 8px; border-radius: 2px; }' +
+        '.print-title-row { display: flex; justify-content: space-between; align-items: center; }' +
+        '.print-doc-title { font-size: 14px; font-weight: 700; color: #444; }' +
+        '.print-date-range { font-size: 11px; color: #888; background: #f5f5f5; padding: 4px 12px; border-radius: 20px; }' +
+        '.print-customer-info { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 11px; color: #555; background: #f7f7f7; border-radius: 8px; padding: 9px 13px; margin-bottom: 13px; }' +
+        '.print-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }' +
+        '.print-table th { background: #A04657; color: #fff; padding: 9px 11px; font-weight: 600; text-align: left; }' +
+        '.print-table th.text-end, .print-table td.text-end { text-align: right; }' +
+        '.print-table td { padding: 8px 11px; border-bottom: 1px solid #e6e6e6; color: #333; }' +
+        '.print-table tbody tr:nth-child(even) { background: #f9f9f9; }' +
+        '.print-table tbody tr:last-child td { border-bottom: 2px solid #A04657; }' +
+        '.print-footer { margin-top: 16px; text-align: center; font-size: 10px; color: #aaa; padding-top: 10px; border-top: 1px solid #eee; }' +
+        '@media print { @page { margin: 10mm 12mm; } }' +
+        '</style>' +
+        '</head>' +
+        '<body>' +
+        content +
+        '</body>' +
+        '</html>'
+    );
+    w.document.close();
+    w.onload = function() {
+        w.focus();
+        w.print();
+        w.close();
+    };
+}
 
-    setTimeout(function() {
-        html2canvas(printArea, {
-            scale: 3,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            width: printArea.scrollWidth,
-            height: printArea.scrollHeight
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const w = window.open('', '_blank');
-            w.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Empty Bottles Summary</title>
-                    <style>
-                        @page { margin: 0; size: A4 landscape; }
-                        body { margin: 0; display: flex; justify-content: center; padding: 20px; }
-                        img { max-width: 100%; height: auto; }
-                    </style>
-                </head>
-                <body>
-                    <img src="${imgData}" />
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 300);
-                        }
-                    <\/script>
-                </body>
-                </html>
-            `);
-            w.document.close();
-            overlay.style.display = 'none';
-        }).catch(err => {
-            console.error(err);
-            alert('Print failed. Please try again.');
-            overlay.style.display = 'none';
-        });
-    }, 200);
+function printCustomers() {
+    doPrint('print-area', 'Empty Bottles Summary');
 }
 
 function printCustomerHistory() {
-    const overlay = document.getElementById('print-overlay-history');
-    const printArea = document.getElementById('print-area-history');
-    overlay.style.display = 'block';
-
-    setTimeout(function() {
-        html2canvas(printArea, {
-            scale: 3,
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            width: printArea.scrollWidth,
-            height: printArea.scrollHeight
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const w = window.open('', '_blank');
-            w.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Empty Bottles History</title>
-                    <style>
-                        @page { margin: 0; size: A4 landscape; }
-                        body { margin: 0; display: flex; justify-content: center; padding: 20px; }
-                        img { max-width: 100%; height: auto; }
-                    </style>
-                </head>
-                <body>
-                    <img src="${imgData}" />
-                    <script>
-                        window.onload = function() {
-                            setTimeout(function() {
-                                window.print();
-                                window.close();
-                            }, 300);
-                        }
-                    <\/script>
-                </body>
-                </html>
-            `);
-            w.document.close();
-            overlay.style.display = 'none';
-        }).catch(err => {
-            console.error(err);
-            alert('Print failed. Please try again.');
-            overlay.style.display = 'none';
-        });
-    }, 200);
+    doPrint('print-area-history', 'Empty Bottles History');
 }
 
 document.addEventListener('DOMContentLoaded', function() {

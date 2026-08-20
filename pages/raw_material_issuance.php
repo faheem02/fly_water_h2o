@@ -115,7 +115,6 @@ $history_result = mysqli_query($conn, $history_query);
 /* Custom Form Styles */
 .form-card {
     border-radius: 20px;
-    overflow: hidden;
     box-shadow: 0 5px 20px rgba(0,0,0,0.05);
     border: none;
 }

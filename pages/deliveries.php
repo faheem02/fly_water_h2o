@@ -168,6 +168,10 @@ body {
 }
 .main-content {
     background: #f5f7fb;
+    overflow: hidden !important;
+}
+.main-content.walkin-mode {
+    overflow: auto !important;
 }
 .delivery-card {
     border: none;
@@ -221,8 +225,7 @@ body {
     background: #e8f5e9;
     border: 1px solid #c8e6c9;
     border-radius: 10px;
-    padding: 12px 16px;
-    margin-top: 10px;
+    padding: 10px 14px;
 }
 .customer-chip .chip-label {
     font-size: 11px;
@@ -235,6 +238,10 @@ body {
     font-weight: 600;
     color: #2e7d32;
 }
+#customerAutocompleteWrap { display: block; }
+#selectedCustomerInfo { display: none; }
+#customerAutocompleteWrap.hidden { display: none; }
+#selectedCustomerInfo.visible { display: block !important; }
 .product-badge {
     display: inline-block;
     background: #fff3e0;
@@ -266,46 +273,7 @@ body {
 </style>
 
 <div class="main-wrapper">
-<div class="container-fluid p-4">
-
-    <!-- Page Header -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="page-heading mb-1">
-                <i class="fas fa-truck me-2" style="color: #A04657;"></i> Daily Water Delivery
-            </h2>
-            <p class="text-muted mb-0" style="font-size: 14px;">Record new delivery for existing or walk-in customer</p>
-        </div>
-        <div class="d-flex gap-3">
-            <div class="stat-card card shadow-sm d-flex flex-row align-items-center gap-3">
-                <div class="stat-icon" style="background: #e3f2fd;">
-                    <i class="fas fa-boxes text-primary"></i>
-                </div>
-                <div>
-                    <div class="stat-value" style="color: #1565c0;">
-                        <?php 
-                        $total_stock = 0;
-                        mysqli_data_seek($products_stock, 0);
-                        while($ps = mysqli_fetch_assoc($products_stock)){
-                            $total_stock += $ps['current_stock'];
-                        }
-                        echo number_format($total_stock);
-                        ?>
-                    </div>
-                    <div class="stat-label">Stock (bottles)</div>
-                </div>
-            </div>
-            <div class="stat-card card shadow-sm d-flex flex-row align-items-center gap-3">
-                <div class="stat-icon" style="background: #fce4ec;">
-                    <i class="fas fa-chart-line" style="color: #A04657;"></i>
-                </div>
-                <div>
-                    <div class="stat-value" style="color: #A04657;">Rs <?php echo number_format($today_total['total'], 2); ?></div>
-                    <div class="stat-label">Today Sales (<?php echo $today_total['bottles']; ?> bottles)</div>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="container-fluid px-3 py-2">
 
     <?php if($success): ?>
         <div class="alert alert-success alert-dismissible fade show rounded-4 border-0 shadow-sm" role="alert">
@@ -330,18 +298,49 @@ body {
                 </div>
                 <div class="card-body">
                     <form method="POST" id="deliveryForm">
-                        <!-- Sale Voucher Number (auto-generated, shown at entry) -->
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold mb-1">Sale Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white"><i class="fas fa-file-invoice text-muted"></i></span>
-                                <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_sls_voucher); ?>" readonly style="color:#A04657;">
+                        <!-- Sale Voucher + Customer in one row -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold mb-1">Sale Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-file-invoice text-muted"></i></span>
+                                    <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_sls_voucher); ?>" readonly style="color:#A04657;">
+                                </div>
                             </div>
-                            <small class="text-muted">This voucher number will be recorded with this sale invoice</small>
-                        </div>
-                        <!-- Customer Section -->
-                        <div class="form-section-title">
-                            <i class="fas fa-user me-2"></i> Customer
+                            <div class="col-md-7" id="existingCustomerSection">
+                                <label class="form-label fw-semibold mb-1">Search Customer <span class="text-danger">*</span></label>
+                                <div id="customerAutocompleteWrap">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                        <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name, mobile or ID..." autocomplete="off">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="clearCustomer()" title="Clear">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="selectedCustomerInfo" class="customer-chip">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="chip-value" id="displayCustomerName"></div>
+                                            <small class="text-muted" id="displayCustomerMobile"></small>
+                                        </div>
+                                        <div class="text-end d-flex align-items-center gap-3">
+                                            <div>
+                                                <small class="text-muted d-block">Balance</small>
+                                                <strong id="displayPrevBalance" style="font-size:13px;color:#A04657;">Rs 0.00</strong>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted d-block">Empties</small>
+                                                <strong id="displayEmptyBottles" style="font-size:13px;color:#1565c0;">0</strong>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearCustomer()" title="Clear">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="customer_id" id="customerId">
+                            </div>
                         </div>
 
                         <!-- Walk-in Toggle (Admin only) -->
@@ -355,42 +354,6 @@ body {
                             </div>
                         </div>
                         <?php endif; ?>
-
-                        <!-- Existing Customer -->
-                        <div id="existingCustomerSection">
-                            <label class="form-label fw-semibold">Search Customer <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name, mobile or ID..." autocomplete="off">
-                                <button type="button" class="btn btn-outline-secondary" onclick="clearCustomer()" title="Clear">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <input type="hidden" name="customer_id" id="customerId">
-                            <div id="selectedCustomerInfo" class="customer-chip" style="display: none;">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <div class="chip-label">Selected Customer</div>
-                                        <div class="chip-value" id="displayCustomerName"></div>
-                                        <small class="text-muted" id="displayCustomerMobile"></small>
-                                    </div>
-                                    <div class="text-end">
-                                        <small class="text-muted d-block">Salesman</small>
-                                        <strong id="displaySalesman" style="font-size:13px;">-</strong>
-                                    </div>
-                                </div>
-                                <div class="row mt-2 pt-2" style="border-top: 1px dashed #c8e6c9;">
-                                    <div class="col-6">
-                                        <small class="text-muted">Previous Balance:</small>
-                                        <strong id="displayPrevBalance" style="font-size:15px;color:#A04657;">Rs 0.00</strong>
-                                    </div>
-                                    <div class="col-6 text-end">
-                                        <small class="text-muted">Empty Bottles:</small>
-                                        <strong id="displayEmptyBottles" style="font-size:15px;color:#1565c0;">0</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                         <!-- Walk-in Customer -->
                         <div id="walkinSection" style="display: none;">
@@ -450,7 +413,7 @@ body {
                             </div>
                             <div class="col-md-3" id="emptyReturnedSection">
                                 <label class="form-label fw-semibold">Empty Returned</label>
-                                <input type="number" name="empty_bottles_returned" id="emptyReturned" class="form-control" placeholder="0" value="0" onkeyup="calculateTotal()">
+                                <input type="number" name="empty_bottles_returned" id="emptyReturned" class="form-control" placeholder="0" onkeyup="calculateTotal()">
                             </div>
                         </div>
 
@@ -460,7 +423,7 @@ body {
                                 <label class="form-label fw-semibold">Bottle Rate (Rs)</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white">Rs</span>
-                                    <input type="number" step="0.01" name="bottle_rate" id="bottleRate" class="form-control" value="0" onkeyup="calculateTotal()" onchange="calculateTotal()">
+                                    <input type="number" step="0.01" name="bottle_rate" id="bottleRate" class="form-control" placeholder="0" onkeyup="calculateTotal()" onchange="calculateTotal()">
                                 </div>
                                 <small class="text-muted">Auto-filled from product, editable</small>
                             </div>
@@ -476,33 +439,29 @@ body {
                                 <label class="form-label fw-semibold">Cash Received (Rs)</label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white">Rs</span>
-                                    <input type="number" step="0.01" name="cash_received" id="cashReceived" class="form-control" value="0" min="0" onkeyup="calculateTotal()" onchange="calculateTotal()">
+                                    <input type="number" step="0.01" name="cash_received" id="cashReceived" class="form-control" placeholder="0" min="0" onkeyup="calculateTotal()" onchange="calculateTotal()">
                                 </div>
                             </div>
                         </div>
-                        <div class="row mt-3">
-                            <div class="col-md-6 offset-md-3">
-                                <div class="p-3 rounded-3 text-center" style="background: #fce4ec; border: 1px solid #f8bbd0;">
-                                    <label class="form-label fw-bold mb-0" style="font-size: 13px; color: #A04657; text-transform: uppercase; letter-spacing: 0.3px;">New Outstanding Balance</label>
+                        <div class="row mt-3 align-items-stretch">
+                            <div class="col-md-5">
+                                <div class="p-3 rounded-3 text-center h-100 d-flex flex-column justify-content-center" style="background: #fce4ec; border: 1px solid #f8bbd0;">
+                                    <label class="form-label fw-bold mb-0" style="font-size: 11px; color: #A04657; text-transform: uppercase; letter-spacing: 0.3px;">New Outstanding Balance</label>
                                     <div class="d-flex align-items-center justify-content-center gap-2 mt-1">
                                         <span style="font-size: 14px; color: #666;">Rs</span>
-                                        <input type="text" class="form-control fw-bold text-center border-0 bg-transparent" id="newOutstandingDisplay" value="0.00" readonly style="color: #A04657; font-size: 28px; width: 150px;">
+                                        <input type="text" class="form-control fw-bold text-center border-0 bg-transparent" id="newOutstandingDisplay" value="0.00" readonly style="color: #A04657; font-size: 24px; width: 130px;">
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Notes -->
-                        <div class="mt-4">
-                            <label class="form-label fw-semibold">Notes</label>
-                            <textarea name="notes" class="form-control" rows="2" placeholder="Any notes about this delivery..."></textarea>
-                        </div>
-
-                        <!-- Submit -->
-                        <div class="mt-4">
-                            <button type="submit" name="add_delivery" class="btn btn-primary w-100 py-2 fw-semibold" id="submitBtn" disabled style="border-radius: 10px;">
-                                <i class="fas fa-save me-2"></i> Save Delivery
-                            </button>
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold">Notes</label>
+                                <textarea name="notes" class="form-control" rows="3" placeholder="Any notes about this delivery..."></textarea>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" name="add_delivery" class="btn btn-primary fw-semibold" id="submitBtn" disabled style="height: 46px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-save me-1"></i> Save
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -652,7 +611,8 @@ $(function() {
         search: function() {
             selectedCustomer = null;
             customerHidden.value = '';
-            selectedCustomerInfo.style.display = 'none';
+            selectedCustomerInfo.classList.remove('visible');
+            document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
         }
     }).data("ui-autocomplete")._renderItem = function(ul, item) {
         return $("<li>")
@@ -666,9 +626,11 @@ function toggleWalkin() {
     isWalkin = document.getElementById('walkinToggle').checked;
     document.getElementById('existingCustomerSection').style.display = isWalkin ? 'none' : 'block';
     document.getElementById('walkinSection').style.display = isWalkin ? 'block' : 'none';
+    document.querySelector('.main-content').classList.toggle('walkin-mode', isWalkin);
     if (isWalkin) {
         customerHidden.value = 'new';
-        selectedCustomerInfo.style.display = 'none';
+        selectedCustomerInfo.classList.remove('visible');
+        document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
         selectedCustomer = null;
     } else {
         customerHidden.value = selectedCustomer ? selectedCustomer.id : '';
@@ -680,16 +642,16 @@ function toggleWalkin() {
 function updateCustomerInfo() {
     if(selectedCustomer) {
         displayCustomerName.innerText = selectedCustomer.name + ' [' + (selectedCustomer.code || '') + ']';
-        displayCustomerMobile.innerText = 'Mobile: ' + selectedCustomer.mobile;
-        const sm = selectedCustomer.salesman || '-';
-        document.getElementById('displaySalesman').innerText = sm === '-' ? sm : (sm + (selectedCustomer.salesman_id ? ' [' + selectedCustomer.salesman_id + ']' : ''));
+        displayCustomerMobile.innerText = selectedCustomer.mobile;
         currentCustomerOutstanding = selectedCustomer.outstanding || 0;
         displayPrevBalance.innerText = 'Rs ' + currentCustomerOutstanding.toFixed(2);
         document.getElementById('displayEmptyBottles').innerText = selectedCustomer.empties || 0;
-        selectedCustomerInfo.style.display = 'block';
+        document.getElementById('customerAutocompleteWrap').classList.add('hidden');
+        selectedCustomerInfo.classList.add('visible');
         calculateTotal();
     } else {
-        selectedCustomerInfo.style.display = 'none';
+        selectedCustomerInfo.classList.remove('visible');
+        document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
         currentCustomerOutstanding = 0;
     }
     enableSubmit();
@@ -700,7 +662,8 @@ function clearCustomer() {
     selectedCustomer = null;
     customerHidden.value = '';
     customerInput.value = '';
-    selectedCustomerInfo.style.display = 'none';
+    selectedCustomerInfo.classList.remove('visible');
+    document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
     enableSubmit();
 }
 
