@@ -314,7 +314,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
 
 <!-- Add Expense Modal -->
 <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i> Add New Expense</h5>
@@ -377,7 +377,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
 
 <!-- Edit Expense Modal -->
 <div class="modal fade" id="editExpenseModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Expense</h5>
@@ -433,7 +433,7 @@ $expense_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as cnt 
 
 <!-- View Expense Modal -->
 <div class="modal fade" id="viewExpenseModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-info text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-receipt me-2"></i> Expense Details</h5>

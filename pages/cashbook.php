@@ -377,7 +377,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
 
 <!-- Add Cash Entry Modal -->
 <div class="modal fade" id="addCashEntryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-plus me-2"></i> Add Cash Entry</h5>
@@ -416,7 +416,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
 
 <!-- Edit Cash Entry Modal -->
 <div class="modal fade" id="editCashModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Cash Entry</h5>
@@ -456,7 +456,7 @@ $closing_balance = $cl['balance'] ?? $opening_balance;
 
 <!-- View Cash Entry Modal -->
 <div class="modal fade" id="viewCashModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-info text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-receipt me-2"></i> Entry Details</h5>

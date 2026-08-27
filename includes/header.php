@@ -143,7 +143,7 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             cursor: pointer;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .mobile-menu-toggle {
                 display: block;
             }
@@ -162,7 +162,7 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             }
             
             .fixed-sidebar.mobile-open {
-                transform: translateX(0);
+                transform: translateX(0) !important;
             }
             
             .sidebar-close {
@@ -171,28 +171,29 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             
             .main-content {
                 margin-left: 0 !important;
-                padding: 15px;
+                padding: 12px;
                 height: calc(100vh - 65px);
                 overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             .fixed-header {
                 position: fixed;
                 top: 0;
-                left: 0;
-                width: 100%;
+                left: 0 !important;
+                width: 100% !important;
                 z-index: 1030;
             }
         }
         
-        @media (min-width: 769px) {
+        @media (min-width: 992px) {
             .fixed-sidebar {
                 transform: translateX(0) !important;
                 position: fixed;
-                /* top: 65px; */
+                top: 0;
                 left: 0;
                 width: 260px;
-                height: calc(100% - 65px);
+                height: 100%;
                 overflow-y: auto;
             }
             
@@ -203,9 +204,14 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             .main-content {
                 margin-left: 260px;
                 margin-top: 65px;
-                padding: 15px 20px;
+                padding: 18px 24px;
                 height: calc(100vh - 65px);
                 overflow-y: auto;
+            }
+
+            .fixed-header {
+                left: 260px;
+                width: calc(100% - 260px);
             }
         }
         
@@ -590,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Close sidebar when window resizes above mobile breakpoint
     window.addEventListener('resize', function() {
-        if(window.innerWidth > 768) {
+        if(window.innerWidth > 991) {
             sidebar.classList.remove('mobile-open');
             if(overlay) overlay.classList.remove('active');
             document.body.style.overflow = '';

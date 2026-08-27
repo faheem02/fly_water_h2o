@@ -167,7 +167,7 @@ $categories = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM expenses e 
 
 <!-- Add Category Modal -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i> Add Expense Category</h5>
@@ -203,7 +203,7 @@ $categories = mysqli_query($conn, "SELECT c.*, (SELECT COUNT(*) FROM expenses e 
 
 <!-- Edit Category Modal -->
 <div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Category</h5>

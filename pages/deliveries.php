@@ -168,10 +168,7 @@ body {
 }
 .main-content {
     background: #f5f7fb;
-    overflow: hidden !important;
-}
-.main-content.walkin-mode {
-    overflow: auto !important;
+    overflow-y: auto !important;
 }
 .delivery-card {
     border: none;
@@ -319,17 +316,17 @@ body {
                                     </div>
                                 </div>
                                 <div id="selectedCustomerInfo" class="customer-chip">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                                         <div>
                                             <div class="chip-value" id="displayCustomerName"></div>
                                             <small class="text-muted" id="displayCustomerMobile"></small>
                                         </div>
-                                        <div class="text-end d-flex align-items-center gap-3">
-                                            <div>
+                                        <div class="text-end d-flex align-items-center gap-2 flex-wrap ms-auto">
+                                            <div class="text-center">
                                                 <small class="text-muted d-block">Balance</small>
                                                 <strong id="displayPrevBalance" style="font-size:13px;color:#A04657;">Rs 0.00</strong>
                                             </div>
-                                            <div>
+                                            <div class="text-center">
                                                 <small class="text-muted d-block">Empties</small>
                                                 <strong id="displayEmptyBottles" style="font-size:13px;color:#1565c0;">0</strong>
                                             </div>

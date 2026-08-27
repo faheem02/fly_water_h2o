@@ -408,7 +408,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 
 <!-- Add Product Modal with Sale Price -->
 <div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i> Add New Product</h5>
@@ -436,10 +436,10 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Sale Price (Rs) *</label>
+                        <label class="form-label">Sale Price (Rs)</label>
                         <div class="input-group">
                             <span class="input-group-text">Rs</span>
-                            <input type="number" name="sale_price" class="form-control" step="0.01" placeholder="0.00" required>
+                            <input type="number" name="sale_price" class="form-control" step="0.01" placeholder="0.00">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -472,7 +472,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 
 <!-- Production Modal -->
 <div class="modal fade" id="addStockInModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-industry me-2"></i> Add Production</h5>
@@ -516,7 +516,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 
 <!-- Adjust Stock Modal -->
 <div class="modal fade" id="adjustStockModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-sliders-h me-2"></i> Adjust Stock</h5>
@@ -566,7 +566,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 
 <!-- Edit Product Modal -->
 <div class="modal fade" id="editProductModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Product</h5>
@@ -617,7 +617,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
 
 <!-- Delete Product Modal -->
 <div class="modal fade" id="deleteProductModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header" style="background: #dc3545; color: white; border-bottom: none; border-radius: 20px 20px 0 0; padding: 15px 20px;">
                 <h5 class="modal-title"><i class="fas fa-trash me-2"></i> Delete Product</h5>

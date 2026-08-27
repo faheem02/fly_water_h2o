@@ -439,7 +439,7 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
 
 <!-- Receive Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-receipt me-2"></i> Receive Payment</h5>
@@ -520,7 +520,7 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
 
 <!-- View Payment Modal -->
 <div class="modal fade" id="viewPaymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-eye me-2"></i> Payment Details</h5>
@@ -562,7 +562,7 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
 
 <!-- Edit Payment Modal -->
 <div class="modal fade" id="editPaymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Payment</h5>
@@ -595,7 +595,7 @@ $month_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(payme
 
 <!-- Delete Payment Modal -->
 <div class="modal fade" id="deletePaymentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header" style="background: #dc3545;">
                 <h5 class="modal-title"><i class="fas fa-trash me-2"></i> Delete Payment</h5>

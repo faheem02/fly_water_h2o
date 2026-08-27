@@ -716,7 +716,7 @@ function printDeliveries() {
 
 <!-- View Delivery Modal -->
 <div class="modal fade" id="viewDeliveryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-eye me-2"></i> Delivery Details</h5>
@@ -755,7 +755,7 @@ function printDeliveries() {
 
 <!-- Edit Delivery Modal -->
 <div class="modal fade" id="editDeliveryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Delivery</h5>

@@ -318,7 +318,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
 
 <!-- Add Supplier Modal -->
 <div class="modal fade" id="addSupplierModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i> Add New Supplier</h5>
@@ -391,7 +391,7 @@ if ($success) $message = "<div class='alert alert-success'>" . htmlspecialchars(
 
 <!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-danger text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-trash-alt me-2"></i> Confirm Delete</h5>

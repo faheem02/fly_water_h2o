@@ -351,7 +351,7 @@ $stats = mysqli_fetch_assoc($stats_query);
 
 <!-- Add Customer Modal -->
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i> Add New Customer</h5>
@@ -416,7 +416,7 @@ $stats = mysqli_fetch_assoc($stats_query);
 
 <!-- Edit Customer Modal -->
 <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-info text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i> Edit Customer</h5>
@@ -470,7 +470,7 @@ $stats = mysqli_fetch_assoc($stats_query);
 
 <!-- View Customer Modal -->
 <div class="modal fade" id="viewCustomerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-success text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user me-2"></i> Customer Details</h5>

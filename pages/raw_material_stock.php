@@ -506,7 +506,7 @@ mysqli_data_seek($result, 0);
 
 <!-- Add Raw Material Modal -->
 <div class="modal fade" id="addMaterialModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i> Add Raw Material</h5>
@@ -577,7 +577,7 @@ mysqli_data_seek($result, 0);
 
 <!-- Edit Prices Modal -->
 <div class="modal fade" id="editPricesModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-info text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-tag me-2"></i> Update Prices</h5>
@@ -616,7 +616,7 @@ mysqli_data_seek($result, 0);
 
 <!-- Adjust Stock Modal -->
 <div class="modal fade" id="adjustStockModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Adjust Stock</h5>

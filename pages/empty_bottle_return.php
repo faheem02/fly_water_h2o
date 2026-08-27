@@ -610,7 +610,7 @@ if($customer_id && $tracking && mysqli_num_rows($tracking) > 0) {
 
 <!-- Edit Customer Modal -->
 <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-info text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i> Edit Customer</h5>

@@ -162,7 +162,7 @@ $users_list = mysqli_query($conn, "SELECT * FROM users ORDER BY id");
 
 <!-- Add User Modal -->
 <div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-primary text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i> Add New User</h5>
@@ -201,7 +201,7 @@ $users_list = mysqli_query($conn, "SELECT * FROM users ORDER BY id");
 
 <!-- Edit User Modal -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-warning text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i> Edit User</h5>
@@ -241,7 +241,7 @@ $users_list = mysqli_query($conn, "SELECT * FROM users ORDER BY id");
 
 <!-- Delete User Modal -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0">
             <div class="modal-header bg-danger text-white border-0 rounded-top-4">
                 <h5 class="modal-title"><i class="fas fa-trash me-2"></i> Delete User</h5>
