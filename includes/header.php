@@ -171,10 +171,17 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
             
             .main-content {
                 margin-left: 0 !important;
+                margin-top: 65px;
                 padding: 12px;
-                height: calc(100vh - 65px);
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
+                min-height: calc(100vh - 65px);
+                box-sizing: border-box;
+            }
+
+            .main-wrapper,
+            .dashboard-wrapper {
+                margin: 0;
+                padding: 0;
+                width: 100%;
             }
             
             .fixed-header {
@@ -205,8 +212,15 @@ $admin_name = isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admini
                 margin-left: 260px;
                 margin-top: 65px;
                 padding: 18px 24px;
-                height: calc(100vh - 65px);
-                overflow-y: auto;
+                min-height: calc(100vh - 65px);
+                box-sizing: border-box;
+            }
+
+            .main-wrapper,
+            .dashboard-wrapper {
+                margin: 0;
+                padding: 0;
+                width: 100%;
             }
 
             .fixed-header {

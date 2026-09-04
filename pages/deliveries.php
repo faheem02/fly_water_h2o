@@ -297,22 +297,29 @@ body {
                     <form method="POST" id="deliveryForm">
                         <!-- Sale Voucher + Customer in one row -->
                         <div class="row g-3 mb-3">
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <label class="form-label fw-semibold mb-1">Sale Voucher No <span class="badge bg-info-subtle text-info-emphasis">Auto</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white"><i class="fas fa-file-invoice text-muted"></i></span>
                                     <input type="text" name="voucher_no" class="form-control fw-bold" value="<?php echo htmlspecialchars($next_sls_voucher); ?>" readonly style="color:#A04657;">
                                 </div>
                             </div>
-                            <div class="col-md-7" id="existingCustomerSection">
+                            <div class="col-md-8" id="existingCustomerSection">
                                 <label class="form-label fw-semibold mb-1">Search Customer <span class="text-danger">*</span></label>
                                 <div id="customerAutocompleteWrap">
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                                        <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name, mobile or ID..." autocomplete="off">
-                                        <button type="button" class="btn btn-outline-secondary" onclick="clearCustomer()" title="Clear">
-                                            <i class="fas fa-times"></i>
+                                    <div class="d-flex gap-2">
+                                        <div class="input-group flex-grow-1">
+                                            <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                                            <input type="text" id="customerAutocomplete" class="form-control" placeholder="Type customer name, mobile or ID..." autocomplete="off">
+                                            <button type="button" class="btn btn-outline-secondary" onclick="clearCustomer()" title="Clear">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <?php if(!is_salesman()): ?>
+                                        <button type="button" class="btn btn-warning text-dark fw-semibold" data-bs-toggle="modal" data-bs-target="#walkinModal" style="border-radius: 8px; padding: 6px 12px; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;" title="New Walk-in Customer">
+                                            <i class="fas fa-walking me-1"></i> Walk-in
                                         </button>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                                 <div id="selectedCustomerInfo" class="customer-chip">
@@ -337,45 +344,10 @@ body {
                                     </div>
                                 </div>
                                 <input type="hidden" name="customer_id" id="customerId">
-                            </div>
-                        </div>
-
-                        <!-- Walk-in Toggle (Admin only) -->
-                        <?php if(!is_salesman()): ?>
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="walkinToggle" onchange="toggleWalkin()" style="cursor: pointer;">
-                                <label class="form-check-label fw-semibold" for="walkinToggle" style="cursor: pointer;">
-                                    <i class="fas fa-walking me-1 text-warning"></i> Walk-in Customer
-                                </label>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Walk-in Customer -->
-                        <div id="walkinSection" style="display: none;">
-                            <div class="card mb-3 border-warning" style="background: #fffbe6;">
-                                <div class="card-body p-3">
-                                    <h6 class="mb-3" style="color: #e65100;"><i class="fas fa-walking me-2"></i> New Walk-in Customer</h6>
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label small">Full Name <span class="text-danger">*</span></label>
-                                            <input type="text" name="walkin_name" id="walkinName" class="form-control" placeholder="Customer name">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small">Mobile</label>
-                                            <input type="text" name="walkin_mobile" id="walkinMobile" class="form-control" placeholder="03XXXXXXXXX">
-                                        </div>
-                                        <div class="col-12">
-                                            <label class="form-label small">Address</label>
-                                            <input type="text" name="walkin_address" id="walkinAddress" class="form-control" placeholder="Address">
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label small">Salesman</label>
-                                            <input type="text" name="walkin_salesman" id="walkinSalesman" class="form-control" placeholder="Salesman" value="<?php echo is_salesman() ? htmlspecialchars($_SESSION['admin_name']) : ''; ?>" <?php echo is_salesman() ? 'readonly' : ''; ?>>
-                                        </div>
-                                    </div>
-                                </div>
+                                <input type="hidden" name="walkin_name" id="walkinName">
+                                <input type="hidden" name="walkin_mobile" id="walkinMobile">
+                                <input type="hidden" name="walkin_address" id="walkinAddress">
+                                <input type="hidden" name="walkin_salesman" id="walkinSalesman">
                             </div>
                         </div>
 
@@ -555,6 +527,41 @@ while($c = mysqli_fetch_assoc($customers_list)){
     ];
 }
 ?>
+<!-- Walk-in Customer Modal -->
+<div class="modal fade" id="walkinModal" tabindex="-1" aria-labelledby="walkinModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header" style="background: #A04657; color: white; border-radius: 16px 16px 0 0; padding: 15px 20px;">
+                <h5 class="modal-title" id="walkinModalLabel"><i class="fas fa-walking me-2"></i> New Walk-in Customer</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Customer Full Name <span class="text-danger">*</span></label>
+                    <input type="text" id="modalWalkinName" class="form-control" placeholder="e.g., Muhammad Ali" style="height: 46px; border-radius: 8px;">
+                    <div id="modalWalkinNameError" class="text-danger small mt-1" style="display:none;"><i class="fas fa-exclamation-circle me-1"></i> Please enter customer name</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Mobile Number</label>
+                    <input type="text" id="modalWalkinMobile" class="form-control" placeholder="e.g., 03001234567" style="height: 46px; border-radius: 8px;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Address / Area</label>
+                    <input type="text" id="modalWalkinAddress" class="form-control" placeholder="e.g., Shop #4, Main Market" style="height: 46px; border-radius: 8px;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Salesman</label>
+                    <input type="text" id="modalWalkinSalesman" class="form-control" placeholder="Salesman name" value="<?php echo is_salesman() ? htmlspecialchars($_SESSION['admin_name']) : ''; ?>" <?php echo is_salesman() ? 'readonly' : ''; ?> style="height: 46px; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light" style="border-radius: 0 0 16px 16px; padding: 12px 20px;">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="applyWalkinCustomer()">Set Walk-in Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 <?php include '../includes/footer.php'; ?>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
@@ -599,6 +606,7 @@ $(function() {
         },
         minLength: 1,
         select: function(event, ui) {
+            isWalkin = false;
             selectedCustomer = ui.item;
             customerHidden.value = ui.item.id;
             customerInput.value = ui.item.name;
@@ -606,10 +614,12 @@ $(function() {
             return false;
         },
         search: function() {
-            selectedCustomer = null;
-            customerHidden.value = '';
-            selectedCustomerInfo.classList.remove('visible');
-            document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
+            if(!isWalkin) {
+                selectedCustomer = null;
+                customerHidden.value = '';
+                selectedCustomerInfo.classList.remove('visible');
+                document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
+            }
         }
     }).data("ui-autocomplete")._renderItem = function(ul, item) {
         return $("<li>")
@@ -618,26 +628,52 @@ $(function() {
     };
 });
 
-// Toggle between walk-in and existing customer
-function toggleWalkin() {
-    isWalkin = document.getElementById('walkinToggle').checked;
-    document.getElementById('existingCustomerSection').style.display = isWalkin ? 'none' : 'block';
-    document.getElementById('walkinSection').style.display = isWalkin ? 'block' : 'none';
-    document.querySelector('.main-content').classList.toggle('walkin-mode', isWalkin);
-    if (isWalkin) {
-        customerHidden.value = 'new';
-        selectedCustomerInfo.classList.remove('visible');
-        document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
-        selectedCustomer = null;
-    } else {
-        customerHidden.value = selectedCustomer ? selectedCustomer.id : '';
+// Apply walk-in customer from modal
+function applyWalkinCustomer() {
+    const name = document.getElementById('modalWalkinName').value.trim();
+    if(!name) {
+        document.getElementById('modalWalkinNameError').style.display = 'block';
+        document.getElementById('modalWalkinName').focus();
+        return;
     }
+    document.getElementById('modalWalkinNameError').style.display = 'none';
+
+    const mobile = document.getElementById('modalWalkinMobile').value.trim();
+    const address = document.getElementById('modalWalkinAddress').value.trim();
+    const salesman = document.getElementById('modalWalkinSalesman').value.trim();
+
+    document.getElementById('walkinName').value = name;
+    document.getElementById('walkinMobile').value = mobile;
+    document.getElementById('walkinAddress').value = address;
+    document.getElementById('walkinSalesman').value = salesman;
+
+    isWalkin = true;
+    selectedCustomer = null;
+    customerHidden.value = 'new';
+    customerInput.value = '';
+
+    displayCustomerName.innerHTML = '<span class="badge bg-warning text-dark me-1"><i class="fas fa-walking"></i> Walk-in</span> ' + $('<div>').text(name).html();
+    displayCustomerMobile.innerText = (mobile ? mobile + ' | ' : '') + (address ? address : 'Walk-in Customer');
+    displayPrevBalance.innerText = 'Rs 0.00';
+    document.getElementById('displayEmptyBottles').innerText = '0';
+
+    document.getElementById('customerAutocompleteWrap').classList.add('hidden');
+    selectedCustomerInfo.classList.add('visible');
+
+    const modalEl = document.getElementById('walkinModal');
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if(modalInstance) {
+        modalInstance.hide();
+    }
+
+    calculateTotal();
     enableSubmit();
 }
 
 // Update customer info when customer is selected
 function updateCustomerInfo() {
     if(selectedCustomer) {
+        isWalkin = false;
         displayCustomerName.innerText = selectedCustomer.name + ' [' + (selectedCustomer.code || '') + ']';
         displayCustomerMobile.innerText = selectedCustomer.mobile;
         currentCustomerOutstanding = selectedCustomer.outstanding || 0;
@@ -646,7 +682,7 @@ function updateCustomerInfo() {
         document.getElementById('customerAutocompleteWrap').classList.add('hidden');
         selectedCustomerInfo.classList.add('visible');
         calculateTotal();
-    } else {
+    } else if(!isWalkin) {
         selectedCustomerInfo.classList.remove('visible');
         document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
         currentCustomerOutstanding = 0;
@@ -657,10 +693,19 @@ function updateCustomerInfo() {
 // Clear customer selection
 function clearCustomer() {
     selectedCustomer = null;
+    isWalkin = false;
     customerHidden.value = '';
     customerInput.value = '';
+    document.getElementById('walkinName').value = '';
+    document.getElementById('walkinMobile').value = '';
+    document.getElementById('walkinAddress').value = '';
+    document.getElementById('walkinSalesman').value = '';
+    document.getElementById('modalWalkinName').value = '';
+    document.getElementById('modalWalkinMobile').value = '';
+    document.getElementById('modalWalkinAddress').value = '';
     selectedCustomerInfo.classList.remove('visible');
     document.getElementById('customerAutocompleteWrap').classList.remove('hidden');
+    calculateTotal();
     enableSubmit();
 }
 
@@ -745,7 +790,9 @@ function calculateTotal() {
 }
 
 function enableSubmit() {
-    const hasCustomer = isWalkin ? document.getElementById('walkinName').value.trim() !== '' : customerHidden.value !== '';
+    const hasCustomer = isWalkin 
+        ? document.getElementById('walkinName').value.trim() !== '' 
+        : customerHidden.value !== '';
     const hasProduct = productSelect.value !== '';
     const hasBottles = parseInt(bottlesInput.value) > 0;
     const hasRate = parseFloat(bottleRateInput.value) > 0;
@@ -766,7 +813,11 @@ bottlesInput.addEventListener('change', function() {
 bottleRateInput.addEventListener('keyup', calculateTotal);
 bottleRateInput.addEventListener('change', calculateTotal);
 
-document.getElementById('walkinName').addEventListener('keyup', enableSubmit);
+document.getElementById('modalWalkinName').addEventListener('input', function() {
+    if(this.value.trim()) {
+        document.getElementById('modalWalkinNameError').style.display = 'none';
+    }
+});
 
 calculateTotal();
 </script>

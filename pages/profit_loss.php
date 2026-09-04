@@ -12,16 +12,21 @@ $to_dt = date('Y-m-d', strtotime($to_date)) . ' 23:59:59';
 $sales_query = mysqli_query($conn, "SELECT COALESCE(SUM(total_amount),0) AS total FROM water_deliveries WHERE delivery_datetime BETWEEN '$from_dt' AND '$to_dt'");
 $total_sales = mysqli_fetch_assoc($sales_query)['total'];
 
-// Sales + profit by product (purchase_price * bottles = cost, actual bottle_rate used at sale time)
-$sales_by_product = mysqli_query($conn, "SELECT COALESCE(p.product_name,'Product') AS product_name, p.purchase_price,
+// Sales + profit by product (actual bottle_rate used at sale time; 19L returnable bottles have 0 purchase cost)
+$sales_by_product = mysqli_query($conn, "SELECT COALESCE(p.product_name,'Product') AS product_name,
+    p.track_empty_bottles,
+    CASE 
+        WHEN p.track_empty_bottles = 1 OR LOWER(p.product_name) LIKE '%19%' THEN 0 
+        ELSE COALESCE(p.purchase_price, 0) 
+    END AS purchase_price,
     ROUND(SUM(wd.total_amount) / SUM(wd.bottles_delivered), 2) AS avg_sale_rate,
     COUNT(*) AS deliveries,
     COALESCE(SUM(wd.bottles_delivered),0) AS bottles,
     COALESCE(SUM(wd.total_amount),0) AS amount,
-    COALESCE(SUM(wd.bottles_delivered * p.purchase_price),0) AS cost
+    COALESCE(SUM(wd.bottles_delivered * (CASE WHEN p.track_empty_bottles = 1 OR LOWER(p.product_name) LIKE '%19%' THEN 0 ELSE COALESCE(p.purchase_price, 0) END)),0) AS cost
     FROM water_deliveries wd LEFT JOIN products p ON wd.product_id = p.id
     WHERE wd.delivery_datetime BETWEEN '$from_dt' AND '$to_dt'
-    GROUP BY wd.product_id, p.product_name, p.purchase_price ORDER BY amount DESC");
+    GROUP BY wd.product_id, p.product_name, p.purchase_price, p.track_empty_bottles ORDER BY amount DESC");
 
 // COGS = sum of (purchase_price * bottles_delivered) per product
 $total_purchases = 0;
@@ -246,15 +251,30 @@ $net_profit = $total_sales - $total_cost;
                         <tr class="pl-section">
                             <td colspan="4"><i class="fas fa-arrow-circle-up me-2"></i> Cost of Goods Sold (Purchase Price)</td>
                         </tr>
-                        <?php if($sales_by_product && mysqli_num_rows($sales_by_product) > 0): ?>
-                            <?php mysqli_data_seek($sales_by_product, 0); while($s = mysqli_fetch_assoc($sales_by_product)): ?>
+                        <?php 
+                        $has_cogs_rows = false;
+                        if($sales_by_product && mysqli_num_rows($sales_by_product) > 0): 
+                            mysqli_data_seek($sales_by_product, 0); 
+                            while($s = mysqli_fetch_assoc($sales_by_product)): 
+                                if($s['cost'] > 0 || $s['purchase_price'] > 0):
+                                    $has_cogs_rows = true;
+                        ?>
                                 <tr>
                                     <td style="padding-left: 30px;"><?php echo htmlspecialchars($s['product_name']); ?> <small class="text-muted">(<?php echo number_format($s['bottles']); ?> x Rs <?php echo number_format($s['purchase_price'], 2); ?>)</small></td>
                                     <td class="text-end">Rs <?php echo number_format($s['purchase_price'], 2); ?></td>
                                     <td class="text-end"><?php echo number_format($s['bottles']); ?></td>
                                     <td class="text-end"><?php echo number_format($s['cost'], 2); ?></td>
                                 </tr>
-                            <?php endwhile; ?>
+                        <?php 
+                                endif;
+                            endwhile; 
+                        endif; 
+                        if(!$has_cogs_rows):
+                        ?>
+                            <tr>
+                                <td style="padding-left: 30px;" colspan="3"><small class="text-muted">No COGS (19L bottle purchase cost is Rs 0.00)</small></td>
+                                <td class="text-end">0.00</td>
+                            </tr>
                         <?php endif; ?>
                         <tr class="pl-total-row">
                             <td colspan="2">Total COGS</td>

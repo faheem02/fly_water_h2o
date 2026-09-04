@@ -12,7 +12,6 @@ $next_product_code = generate_5digit_code($conn, 'products', 'product_code');
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
     $product_name = mysqli_real_escape_string($conn, $_POST['product_name']);
     $purchase_price = floatval($_POST['purchase_price']);
-    $sale_price = floatval($_POST['sale_price']);
     $opening_stock = intval($_POST['opening_stock']);
     $track_empty = isset($_POST['track_empty_bottles']) ? 1 : 0;
     $datetime = date('Y-m-d H:i:s');
@@ -24,9 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
         $existing = mysqli_fetch_assoc($existing_query);
         $new_stock = $existing['current_stock'] + $opening_stock;
         $new_price = ($purchase_price > 0) ? $purchase_price : $existing['purchase_price'];
-        $new_sale = ($sale_price > 0) ? $sale_price : $existing['sale_price'];
 
-        mysqli_query($conn, "UPDATE products SET current_stock = $new_stock, purchase_price = $new_price, sale_price = $new_sale WHERE id={$existing['id']}");
+        mysqli_query($conn, "UPDATE products SET current_stock = $new_stock, purchase_price = $new_price WHERE id={$existing['id']}");
 
         if($opening_stock > 0) {
             mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, quantity_in, running_stock, description, created_datetime) 
@@ -37,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_product'])) {
     } else {
         $product_code = !empty($_POST['product_code']) ? mysqli_real_escape_string($conn, $_POST['product_code']) : generate_5digit_code($conn, 'products', 'product_code');
         $min_level = isset($_POST['min_stock_level']) ? intval($_POST['min_stock_level']) : 10;
-        $insert_query = "INSERT INTO products (product_code, product_name, purchase_price, sale_price, current_stock, min_stock_level, track_empty_bottles, status, created_datetime) 
-                         VALUES ('$product_code', '$product_name', $purchase_price, $sale_price, $opening_stock, $min_level, $track_empty, 'Active', '$datetime')";
+        $insert_query = "INSERT INTO products (product_code, product_name, purchase_price, current_stock, min_stock_level, track_empty_bottles, status, created_datetime) 
+                         VALUES ('$product_code', '$product_name', $purchase_price, $opening_stock, $min_level, $track_empty, 'Active', '$datetime')";
         
         if(mysqli_query($conn, $insert_query)) {
             $product_id = mysqli_insert_id($conn);
@@ -422,7 +420,7 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                             <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
                             <input type="text" name="product_code" class="form-control" value="<?php echo htmlspecialchars($next_product_code); ?>" readonly>
                         </div>
-                        <small class="text-muted">This 5-digit ID is auto-generated for this product</small>
+                        <!-- <small class="text-muted">This 5-digit ID is auto-generated for this product</small> -->
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Product Name *</label>
@@ -433,13 +431,6 @@ $stock_ledger = mysqli_query($conn, "SELECT sl.*, p.product_name FROM stock_ledg
                         <div class="input-group">
                             <span class="input-group-text">Rs</span>
                             <input type="number" name="purchase_price" class="form-control" step="0.01" placeholder="0.00">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Sale Price (Rs)</label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rs</span>
-                            <input type="number" name="sale_price" class="form-control" step="0.01" placeholder="0.00">
                         </div>
                     </div>
                     <div class="mb-3">
