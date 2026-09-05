@@ -67,6 +67,7 @@ function ref_type_label($type, $in) {
         case 'opening': return 'Opening Stock';
         case 'production': return 'Production';
         case 'delivery': return 'Delivery';
+        case 'empty_return': return 'Empty Return';
         case 'adjustment': return $in > 0 ? 'Adjustment In' : 'Adjustment Out';
         case 'stock_add': return 'Add Stock';
         default: return ucfirst(str_replace('_', ' ', $type));

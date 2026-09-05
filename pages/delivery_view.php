@@ -44,16 +44,18 @@ function reverse_delivery($conn, $delivery) {
     $cash = delivery_cash_received($conn, $did);
 
     if ($product_id) {
-        mysqli_query($conn, "UPDATE products SET current_stock = current_stock + $bottles WHERE id=$product_id");
         $prod = mysqli_fetch_assoc(mysqli_query($conn, "SELECT track_empty_bottles FROM products WHERE id=$product_id"));
-        if ($prod && !empty($prod['track_empty_bottles'])) {
+        $track_empties = ($prod && !empty($prod['track_empty_bottles']));
+        $net_deducted = $bottles - ($track_empties ? $empties : 0);
+        mysqli_query($conn, "UPDATE products SET current_stock = current_stock + $net_deducted WHERE id=$product_id");
+        if ($track_empties) {
             mysqli_query($conn, "UPDATE customers SET empty_bottles_balance = empty_bottles_balance - $bottles + $empties WHERE id=$customer_id");
         }
     }
 
     mysqli_query($conn, "DELETE FROM customer_ledger WHERE reference_id=$did AND reference_type IN ('delivery','payment')");
     mysqli_query($conn, "DELETE FROM bottle_tracking WHERE reference_id=$did");
-    mysqli_query($conn, "DELETE FROM stock_ledger WHERE reference_type='delivery' AND reference_id=$did");
+    mysqli_query($conn, "DELETE FROM stock_ledger WHERE reference_id=$did AND reference_type IN ('delivery','empty_return')");
     mysqli_query($conn, "DELETE FROM water_deliveries WHERE id=$did");
 
     recompute_customer_ledger($conn, $customer_id);
@@ -106,10 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $track_empties = !empty($product['track_empty_bottles']);
                     if (!$track_empties) $empties = 0;
                     $total = $bottles * $rate;
-                    $stock_after = intval($product['current_stock']) + intval($delivery['bottles_delivered']) - $bottles;
+                    $old_prod = mysqli_fetch_assoc(mysqli_query($conn, "SELECT track_empty_bottles FROM products WHERE id=" . intval($delivery['product_id'])));
+                    $old_track_empties = ($old_prod && !empty($old_prod['track_empty_bottles']));
+                    $old_net_deducted = ($delivery['product_id'] == $product_id) ? (intval($delivery['bottles_delivered']) - ($old_track_empties ? intval($delivery['empty_bottles_returned']) : 0)) : 0;
+                    $new_net_deducted = $bottles - ($track_empties ? $empties : 0);
+                    $stock_after = intval($product['current_stock']) + $old_net_deducted - $new_net_deducted;
 
                     if ($stock_after < 0) {
-                        $message = "<div class='alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm' role='alert'><i class='fas fa-exclamation-circle me-2'></i> Insufficient stock! Only " . (intval($product['current_stock']) + intval($delivery['bottles_delivered'])) . " bottles available.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+                        $message = "<div class='alert alert-danger alert-dismissible fade show rounded-4 border-0 shadow-sm' role='alert'><i class='fas fa-exclamation-circle me-2'></i> Insufficient stock! Only " . (intval($product['current_stock']) + $old_net_deducted) . " bottles available.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
                     } else {
                         $datetime = $delivery['delivery_datetime'];
                         $entry_salesman = mysqli_real_escape_string($conn, $delivery['salesman'] ?? '');
@@ -142,8 +148,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                                  VALUES ($customer_id, '$datetime', $bottles, $empties, 0, $empties_bal, '$notes', $id)");
                         }
 
+                        // 1. Record stock OUT for the delivered bottles
+                        $stock_after_out = intval($product['current_stock']) + $old_net_deducted - $bottles;
+                        $desc_out = "Water delivery: $bottles bottles of {$product['product_name']} delivered to customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " (Voucher: $voucher_no)";
                         mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, reference_id, quantity_out, running_stock, description, created_datetime) 
-                                             VALUES ($product_id, '$datetime', 'OUT', 'delivery', $id, $bottles, $stock_after, 'Stock out: $bottles bottles of {$product['product_name']} delivered to customer: " . htmlspecialchars($cust['customer_name']) . "', '$datetime')");
+                                             VALUES ($product_id, '$datetime', 'OUT', 'delivery', $id, $bottles, $stock_after_out, '$desc_out', '$datetime')");
+
+                        // 2. If empty bottles returned, record stock IN
+                        if ($track_empties && $empties > 0) {
+                            $desc_in = "Empty bottles returned: $empties bottles from customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " (Voucher: $voucher_no)";
+                            mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, reference_id, quantity_in, running_stock, description, created_datetime) 
+                                                 VALUES ($product_id, '$datetime', 'IN', 'empty_return', $id, $empties, $stock_after, '$desc_in', '$datetime')");
+                        }
 
                         recompute_customer_ledger($conn, $customer_id);
 

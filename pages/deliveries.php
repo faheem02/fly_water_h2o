@@ -109,14 +109,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['add_delivery'])) {
             }
             
             // ========== STOCK MANAGEMENT: DEDUCT STOCK ==========
-            $new_stock = $product['current_stock'] - $bottles;
+            $net_stock_out = $bottles - ($track_empties ? $empties_returned : 0);
+            $new_stock = $product['current_stock'] - $net_stock_out;
             
             // Update product stock
             mysqli_query($conn, "UPDATE products SET current_stock = $new_stock WHERE id=$product_id");
             
-            // Add to stock ledger
+            // Add to stock ledger:
+            // 1. Record Delivery OUT
+            $stock_after_out = $product['current_stock'] - $bottles;
+            $desc_out = "Water delivery: $bottles bottles of {$product['product_name']} delivered to customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " (Voucher: $voucher_no)";
             mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, reference_id, quantity_out, running_stock, description, created_datetime) 
-                                 VALUES ($product_id, '$datetime', 'OUT', 'delivery', $delivery_id, $bottles, $new_stock, 'Stock out: $bottles bottles of {$product['product_name']} delivered to customer: " . htmlspecialchars($cust['customer_name']) . "', '$datetime')");
+                                 VALUES ($product_id, '$datetime', 'OUT', 'delivery', $delivery_id, $bottles, $stock_after_out, '$desc_out', '$datetime')");
+            
+            // 2. Record Empty Return IN (if empties returned)
+            if ($track_empties && $empties_returned > 0) {
+                $desc_in = "Empty bottles returned: $empties_returned bottles from customer: " . mysqli_real_escape_string($conn, $cust['customer_name']) . " (Voucher: $voucher_no)";
+                mysqli_query($conn, "INSERT INTO stock_ledger (product_id, transaction_date, transaction_type, reference_type, reference_id, quantity_in, running_stock, description, created_datetime) 
+                                     VALUES ($product_id, '$datetime', 'IN', 'empty_return', $delivery_id, $empties_returned, $new_stock, '$desc_in', '$datetime')");
+            }
             
             // Check for low stock alert
             if($new_stock <= $product['min_stock_level']) {
